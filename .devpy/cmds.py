@@ -4,6 +4,7 @@ import sys
 
 import click
 from devpy import util
+from devpy.cmds.meson import get_site_packages
 
 
 @click.command()
@@ -17,7 +18,7 @@ def docs(build_dir, clean=False):
             print(f"Removing `{doc_dir}`")
             shutil.rmtree(doc_dir)
 
-    site_path = util.get_site_packages(build_dir)
+    site_path = get_site_packages()
     if site_path is None:
         print("No built scikit-tree found; run `./dev.py build` first.")
         sys.exit(1)

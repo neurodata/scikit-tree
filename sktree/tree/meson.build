@@ -15,13 +15,11 @@ foreach ext: extensions
     cython_gen_cpp.process(ext + '.pyx'),
     c_args: cython_c_args,
     include_directories: [incdir_numpy],
-    # override_options : ['cython_language=cpp'],
     install: true,
     subdir: 'sktree/tree',
   )
 endforeach
 
-# TODO: comment in _classes.py when we have a working Cython unsupervised tree with a Python API
 python_sources = [
   '__init__.py',
   '_classes.py',

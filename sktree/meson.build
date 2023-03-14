@@ -39,16 +39,12 @@ incdir_numpy = run_command(py3,
 ).stdout().strip()
 # inc_np = include_directories(incdir_numpy)
 
+# only use non-deprecated Numpy API
+numpy_nodepr_api = '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION'
+cython_c_args = '-NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION'
+
 cc = meson.get_compiler('c')
 
-# Don't use the deprecated NumPy C API. Define this to a fixed version instead of
-# NPY_API_VERSION in order not to break compilation for released versions
-# when NumPy introduces a new deprecation. Use in a meson.build file::
-#
-# py3.extension_module('_name',
-#   'source_fname',
-#   numpy_nodepr_api)
-numpy_nodepr_api = '-DNPY_NO_DEPRECATED_API=NPY_1_9_API_VERSION'
 
 python_sources = [
   '__init__.py',
@@ -77,6 +73,7 @@ c_undefined_ok = ['-Wno-maybe-uninitialized']
 # cython_c_args += ['-Wno-cpp']
 # cython_cpp_args = cython_c_args
 
+subdir('causal')
 subdir('tree')
 subdir('ensemble')
 subdir('tests')
