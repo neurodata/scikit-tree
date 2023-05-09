@@ -265,3 +265,40 @@ for idx, ax in enumerate(axs):
 
 fig.suptitle("2D Discontiguous Patch Visualization")
 plt.show()
+
+# %%
+# We will make the patch 2D, which samples multiple rows contiguously. This is
+# a 2D patch of size 3 in the columns and 2 in the rows.
+dim_contiguous = np.array((False, False))
+
+splitter = BestPatchSplitterTester(
+    criterion,
+    max_features,
+    min_samples_leaf,
+    min_weight_leaf,
+    random_state,
+    min_patch_dims,
+    max_patch_dims,
+    dim_contiguous,
+    data_dims,
+    boundary,
+    feature_weight,
+)
+splitter.init_test(X, y, sample_weight)
+
+# sample the projection matrix that consists of 1D patches
+proj_mat = splitter.sample_projection_matrix()
+
+# Visualize 2D patches
+fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(12, 8), sharex=True, sharey=True, squeeze=True)
+axs = axs.flatten()
+for idx, ax in enumerate(axs):
+    ax.imshow(proj_mat[idx, :].reshape(data_dims), cmap="viridis")
+    ax.set(
+        xlim=(-1, data_dims[1]),
+        ylim=(-1, data_dims[0]),
+        title=f"Patch {idx}",
+    )
+
+fig.suptitle("2D Discontiguous In All Dims Patch Visualization")
+plt.show()

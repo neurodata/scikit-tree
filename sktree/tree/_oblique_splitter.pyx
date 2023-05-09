@@ -161,7 +161,7 @@ cdef class BaseObliqueSplitter(Splitter):
         # sort samples according to the feature values.
         for idx in range(start, end):
             # initialize the feature value to 0
-            feature_values[idx] = 0
+            feature_values[idx] = 0.0
             for jdx in range(0, proj_vec_indices.size()):
                 feature_values[idx] += self.X[
                     samples[idx], deref(proj_vec_indices)[jdx]

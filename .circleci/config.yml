@@ -69,7 +69,7 @@ commands:
 
 jobs:
   # Build scikit-tree from source
-  build_scikit-tree:
+  build_scikit_tree:
     <<: *defaults
     steps:
       - checkout
@@ -186,13 +186,16 @@ jobs:
             - ~/sktree
 
 workflows:
-  commit:
+  default:
     jobs:
-      - build_scikit-tree
+      - build_scikit_tree:
+          name: build_scikit_tree
       - build_docs:
+          name: build_docs
           requires:
-            - build_scikit-tree
+            - build_scikit_tree
       - docs-deploy:
+          name: docs-deploy
           requires:
             - build_docs
           filters:

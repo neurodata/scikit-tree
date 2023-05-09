@@ -1,8 +1,6 @@
 # distutils: language = c++
 
 # Authors: Adam Li <adam2392@gmail.com>
-#          Chester Huynh <chester.huynh924@gmail.com>
-#          Parth Vora <pvora4@jhu.edu>
 #
 # License: BSD 3 clause
 
@@ -33,6 +31,13 @@ from .._oblique_splitter cimport BaseObliqueSplitter, ObliqueSplitRecord
 #         discrete_distribution(T first, T last) except +
 #         operator()(&G) except +
 
+# XXX: replace with from libcpp.algorithm cimport swap
+# when Cython 3.0 is released
+cdef extern from "<algorithm>" namespace "std" nogil:
+    void swap[T](T& a, T& b) except +  # array overload also works
+
+ctypedef DTYPE_t* DTYPE_t_ptr
+ctypedef SIZE_t* SIZE_t_ptr
 
 cdef class PatchSplitter(BaseObliqueSplitter):
     # The PatchSplitter creates candidate feature values by sampling 2D patches from
@@ -82,19 +87,6 @@ cdef class PatchSplitter(BaseObliqueSplitter):
 
 cdef class UserKernelSplitter(PatchSplitter):
     """A class to hold user-specified kernels."""
-    cdef vector[DTYPE_t[:, ::1]] kernel_dictionary  # A list of C-contiguous 2D kernels
 
-
-cdef class GaussianKernelSplitter(PatchSplitter):
-    """A class to hold Gaussian kernels.
-
-    Overrides the weights that are generated to be sampled from a Gaussian distribution.
-    See: https://www.tutorialspoint.com/gaussian-filter-generation-in-cplusplus
-    See: https://gist.github.com/thomasaarholt/267ec4fff40ca9dff1106490ea3b7567
-    """
-
-    cdef void sample_proj_mat(
-        self,
-        vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
-    ) nogil
+    cdef vector[DTYPE_t*] kernel_dictionary  # A list of C-contiguous 2D kernels
+    cdef vector[SIZE_t*] kernel_dims         # A list of arrays storing the dimensions of each kernel in `kernel_dictionary`

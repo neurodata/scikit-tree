@@ -3,7 +3,6 @@
 # cython: wraparound=False, initializedcheck=False, cdivision=True
 
 # Authors: Adam Li <adam2392@gmail.com>
-#          Jong Shin <jshinm@gmail.com>
 #
 
 # License: BSD 3 clause

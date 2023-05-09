@@ -1,5 +1,5 @@
-# cython: cdivision=True
 # distutils: language=c++
+# cython: cdivision=True
 # cython: language_level=3
 # cython: boundscheck=False
 # cython: wraparound=False
@@ -9,6 +9,7 @@ import numpy as np
 cimport numpy as cnp
 
 cnp.import_array()
+
 
 cpdef unravel_index(
     SIZE_t index,
