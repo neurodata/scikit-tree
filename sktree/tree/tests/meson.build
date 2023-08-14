@@ -4,6 +4,8 @@ python_sources = [
   'test_utils.py',
   'test_honest_tree.py',
   'test_marginal.py',
+  'test_all_trees.py',
+  'test_unsupervised_tree.py',
 ]
 
 py3.install_sources(

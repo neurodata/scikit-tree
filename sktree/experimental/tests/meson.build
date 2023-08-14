@@ -2,6 +2,8 @@ python_sources = [
   '__init__.py',
   'test_mutual_info.py',
   'test_simulate.py',
+  'test_ksg.py',
+  'test_monte_carlo.py'
 ]
 
 py3.install_sources(

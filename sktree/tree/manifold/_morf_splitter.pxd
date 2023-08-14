@@ -14,11 +14,11 @@ cimport numpy as cnp
 from libcpp.vector cimport vector
 
 from ..._lib.sklearn.tree._splitter cimport SplitRecord
-from ..._lib.sklearn.tree._tree cimport DOUBLE_t  # Type of y, sample_weight
-from ..._lib.sklearn.tree._tree cimport DTYPE_t  # Type of X
-from ..._lib.sklearn.tree._tree cimport INT32_t  # Signed 32 bit integer
-from ..._lib.sklearn.tree._tree cimport SIZE_t  # Type for indices and counters
-from ..._lib.sklearn.tree._tree cimport UINT32_t  # Unsigned 32 bit integer
+from ..._lib.sklearn.tree._utils cimport DOUBLE_t  # Type of y, sample_weight
+from ..._lib.sklearn.tree._utils cimport DTYPE_t  # Type of X
+from ..._lib.sklearn.tree._utils cimport INT32_t  # Signed 32 bit integer
+from ..._lib.sklearn.tree._utils cimport SIZE_t  # Type for indices and counters
+from ..._lib.sklearn.tree._utils cimport UINT32_t  # Unsigned 32 bit integer
 from .._oblique_splitter cimport BaseObliqueSplitter, ObliqueSplitRecord
 
 # https://github.com/cython/cython/blob/master/Cython/Includes/libcpp/algorithm.pxd
@@ -81,12 +81,12 @@ cdef class PatchSplitter(BaseObliqueSplitter):
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
         vector[vector[SIZE_t]]& proj_mat_indices
-    ) nogil
+    ) noexcept nogil
 
 
-cdef class UserKernelSplitter(PatchSplitter):
-    """A class to hold user-specified kernels."""
-    cdef vector[DTYPE_t[:, ::1]] kernel_dictionary  # A list of C-contiguous 2D kernels
+# cdef class UserKernelSplitter(PatchSplitter):
+#     """A class to hold user-specified kernels."""
+#     cdef vector[DTYPE_t[:, ::1]] kernel_dictionary  # A list of C-contiguous 2D kernels
 
 
 cdef class GaussianKernelSplitter(PatchSplitter):
@@ -101,4 +101,4 @@ cdef class GaussianKernelSplitter(PatchSplitter):
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
         vector[vector[SIZE_t]]& proj_mat_indices
-    ) nogil
+    ) noexcept nogil

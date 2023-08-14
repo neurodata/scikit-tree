@@ -1,6 +1,6 @@
 meson
 meson-python
-cython
+cython>=3.0
 ninja
 numpy
 scikit-learn>=1.3

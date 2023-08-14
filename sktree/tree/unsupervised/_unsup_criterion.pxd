@@ -3,11 +3,11 @@
 # cython: language_level=3
 
 from ..._lib.sklearn.tree._criterion cimport BaseCriterion
-from ..._lib.sklearn.tree._tree cimport DOUBLE_t  # Type of y, sample_weight
-from ..._lib.sklearn.tree._tree cimport DTYPE_t  # Type of X
-from ..._lib.sklearn.tree._tree cimport INT32_t  # Signed 32 bit integer
-from ..._lib.sklearn.tree._tree cimport SIZE_t  # Type for indices and counters
-from ..._lib.sklearn.tree._tree cimport UINT32_t  # Unsigned 32 bit integer
+from ..._lib.sklearn.tree._utils cimport DOUBLE_t  # Type of y, sample_weight
+from ..._lib.sklearn.tree._utils cimport DTYPE_t  # Type of X
+from ..._lib.sklearn.tree._utils cimport INT32_t  # Signed 32 bit integer
+from ..._lib.sklearn.tree._utils cimport SIZE_t  # Type for indices and counters
+from ..._lib.sklearn.tree._utils cimport UINT32_t  # Unsigned 32 bit integer
 
 # Note: This class is an exact copy of scikit-learn's Criterion
 # class, with the exception of the type of the internal structure.
@@ -56,10 +56,10 @@ cdef class UnsupervisedCriterion(BaseCriterion):
     cdef void init_feature_vec(
         self,
         const DTYPE_t[:] Xf,
-    ) nogil
+    ) noexcept nogil
 
     cdef void set_sample_pointers(
         self,
         SIZE_t start,
         SIZE_t end
-    ) nogil
+    ) noexcept nogil

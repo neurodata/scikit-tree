@@ -26,6 +26,7 @@ cimport numpy as cnp
 
 cnp.import_array()
 
+
 cdef extern from "numpy/arrayobject.h":
     object PyArray_NewFromDescr(PyTypeObject* subtype, cnp.dtype descr,
                                 int nd, cnp.npy_intp* dims,
@@ -325,7 +326,7 @@ cdef class UnsupervisedBestFirstTreeBuilder(UnsupervisedTreeBuilder):
                    )
 
         if not is_leaf:
-            splitter.node_split(impurity, split_ptr, &n_constant_features)
+            splitter.node_split(impurity, split_ptr, &n_constant_features, 0., 0.)
 
             # assign local copy of SplitRecord to assign
             # pos, improvement, and impurity scores
@@ -409,7 +410,7 @@ cdef class UnsupervisedDepthFirstTreeBuilder(UnsupervisedTreeBuilder):
         cdef int init_capacity
 
         if tree.max_depth <= 10:
-            init_capacity = (2 ** (tree.max_depth + 1)) - 1
+            init_capacity = <int>(2 ** (tree.max_depth + 1)) - 1
         else:
             init_capacity = 2047
 
@@ -491,7 +492,7 @@ cdef class UnsupervisedDepthFirstTreeBuilder(UnsupervisedTreeBuilder):
                 is_leaf = is_leaf or impurity <= EPSILON
 
                 if not is_leaf:
-                    splitter.node_split(impurity, split_ptr, &n_constant_features)
+                    splitter.node_split(impurity, split_ptr, &n_constant_features, 0., 0.)
 
                     # assign local copy of SplitRecord to assign
                     # pos, improvement, and impurity scores
@@ -617,43 +618,46 @@ cdef class UnsupervisedTree(BaseTree):
     # WARNING: these reference the current `nodes` and `value` buffers, which
     # must not be freed by a subsequent memory allocation.
     # (i.e. through `_resize` or `__setstate__`)
-    property children_left:
-        def __get__(self):
-            return self._get_node_ndarray()['left_child'][:self.node_count]
+    @property
+    def children_left(self):
+        return self._get_node_ndarray()['left_child'][:self.node_count]
 
-    property children_right:
-        def __get__(self):
-            return self._get_node_ndarray()['right_child'][:self.node_count]
+    @property
+    def children_right(self):
+        return self._get_node_ndarray()['right_child'][:self.node_count]
 
-    property n_leaves:
-        def __get__(self):
-            return np.sum(np.logical_and(
-                self.children_left == -1,
-                self.children_right == -1))
+    def n_leaves(self):
+        return np.sum(np.logical_and(
+            self.children_left == -1,
+            self.children_right == -1))
 
-    property feature:
-        def __get__(self):
-            return self._get_node_ndarray()['feature'][:self.node_count]
+    @property
+    def feature(self):
+        return self._get_node_ndarray()['feature'][:self.node_count]
 
-    property threshold:
-        def __get__(self):
-            return self._get_node_ndarray()['threshold'][:self.node_count]
+    @property
+    def threshold(self):
+        return self._get_node_ndarray()['threshold'][:self.node_count]
 
-    property impurity:
-        def __get__(self):
-            return self._get_node_ndarray()['impurity'][:self.node_count]
+    @property
+    def impurity(self):
+        return self._get_node_ndarray()['impurity'][:self.node_count]
 
-    property n_node_samples:
-        def __get__(self):
-            return self._get_node_ndarray()['n_node_samples'][:self.node_count]
+    @property
+    def n_node_samples(self):
+        return self._get_node_ndarray()['n_node_samples'][:self.node_count]
 
-    property weighted_n_node_samples:
-        def __get__(self):
-            return self._get_node_ndarray()['weighted_n_node_samples'][:self.node_count]
+    @property
+    def weighted_n_node_samples(self):
+        return self._get_node_ndarray()['weighted_n_node_samples'][:self.node_count]
 
-    property value:
-        def __get__(self):
-            return self._get_value_ndarray()[:self.node_count]
+    @property
+    def value(self):
+        return self._get_value_ndarray()[:self.node_count]
+
+    # @property
+    # def n_categories(self):
+    #     return int32_ptr_to_ndarray(self.n_categories, self.n_features)
 
     def __cinit__(self, int n_features):
         """Constructor."""
@@ -669,11 +673,19 @@ cdef class UnsupervisedTree(BaseTree):
         self.value = NULL
         self.nodes = NULL
 
+        # self.n_categories = NULL
+        # cdef SIZE_t k
+        # safe_realloc(&self.n_categories, n_features)
+        # if n_categories is not None:
+        #     for k in range(n_features):
+        #         self.n_categories[k] = n_categories[k]
+
     def __dealloc__(self):
         """Destructor."""
         # Free all inner structures
         free(self.value)
         free(self.nodes)
+        # free(self.n_categories)
 
     def __reduce__(self):
         """Reduce re-implementation, for pickling."""
@@ -719,90 +731,6 @@ cdef class UnsupervisedTree(BaseTree):
         memcpy(self.value, cnp.PyArray_DATA(value_ndarray),
                self.capacity * self.value_stride * sizeof(double))
 
-    cdef int _set_split_node(
-        self,
-        SplitRecord* split_node,
-        Node* node
-    ) except -1 nogil:
-        """Set split node data.
-
-        Parameters
-        ----------
-        split_node : SplitRecord*
-            The pointer to the record of the split node data.
-        node : Node*
-            The pointer to the node that will hold the split node.
-        """
-        # left_child and right_child will be set later for a split node
-        node.feature = split_node.feature
-        node.threshold = split_node.threshold
-        return 1
-
-    cdef int _set_leaf_node(
-        self,
-        SplitRecord* split_node,
-        Node* node
-    ) except -1 nogil:
-        """Set leaf node data.
-
-        Parameters
-        ----------
-        split_node : SplitRecord*
-            The pointer to the record of the leaf node data.
-        node : Node*
-            The pointer to the node that will hold the leaf node.
-        """
-        node.left_child = _TREE_LEAF
-        node.right_child = _TREE_LEAF
-        node.feature = _TREE_UNDEFINED
-        node.threshold = _TREE_UNDEFINED
-        return 1
-
-    cdef DTYPE_t _compute_feature(
-        self,
-        const DTYPE_t[:, :] X_ndarray,
-        SIZE_t sample_index,
-        Node *node
-    ) noexcept nogil:
-        """Compute feature from a given data matrix, X.
-
-        In axis-aligned trees, this is simply the value in the column of X
-        for this specific feature.
-        """
-        # the feature index
-        cdef DTYPE_t feature = X_ndarray[sample_index, node.feature]
-        return feature
-
-    cdef void _compute_feature_importances(
-        self,
-        cnp.float64_t[:] importances,
-        Node* node
-    ) noexcept nogil:
-        """Compute feature importances from a Node in the Tree.
-
-        Wrapped in a private function to allow subclassing that
-        computes feature importances.
-
-        Parameters
-        ----------
-        importance_data : DOUBLE_t*
-            An array of importance data with shape (n_features,), containing the
-            importances computed of each feature.
-        node : Node*
-            The node.
-        """
-        cdef Node* nodes = self.nodes
-        cdef Node* left
-        cdef Node* right
-
-        left = &nodes[node.left_child]
-        right = &nodes[node.right_child]
-
-        importances[node.feature] += (
-            node.weighted_n_node_samples * node.impurity -
-            left.weighted_n_node_samples * left.impurity -
-            right.weighted_n_node_samples * right.impurity)
-
     cdef cnp.ndarray _get_value_ndarray(self):
         """Wraps value as a 3-d NumPy array.
 
@@ -839,113 +767,6 @@ cdef class UnsupervisedTree(BaseTree):
         if PyArray_SetBaseObject(arr, <PyObject*> self) < 0:
             raise ValueError("Can't initialize array.")
         return arr
-
-    def compute_partial_dependence(self, DTYPE_t[:, ::1] X,
-                                   int[::1] target_features,
-                                   double[::1] out):
-        """Partial dependence of the response on the ``target_feature`` set.
-
-        For each sample in ``X`` a tree traversal is performed.
-        Each traversal starts from the root with weight 1.0.
-
-        At each non-leaf node that splits on a target feature, either
-        the left child or the right child is visited based on the feature
-        value of the current sample, and the weight is not modified.
-        At each non-leaf node that splits on a complementary feature,
-        both children are visited and the weight is multiplied by the fraction
-        of training samples which went to each child.
-
-        At each leaf, the value of the node is multiplied by the current
-        weight (weights sum to 1 for all visited terminal nodes).
-
-        Parameters
-        ----------
-        X : view on 2d ndarray, shape (n_samples, n_target_features)
-            The grid points on which the partial dependence should be
-            evaluated.
-        target_features : view on 1d ndarray, shape (n_target_features)
-            The set of target features for which the partial dependence
-            should be evaluated.
-        out : view on 1d ndarray, shape (n_samples)
-            The value of the partial dependence function on each grid
-            point.
-        """
-        cdef:
-            double[::1] weight_stack = np.zeros(self.node_count,
-                                                dtype=np.float64)
-            SIZE_t[::1] node_idx_stack = np.zeros(self.node_count,
-                                                  dtype=np.intp)
-            SIZE_t sample_idx
-            SIZE_t feature_idx
-            int stack_size
-            double left_sample_frac
-            double current_weight
-            double total_weight  # used for sanity check only
-            Node *current_node  # use a pointer to avoid copying attributes
-            SIZE_t current_node_idx
-            bint is_target_feature
-            SIZE_t _TREE_LEAF = TREE_LEAF  # to avoid python interactions
-
-        for sample_idx in range(X.shape[0]):
-            # init stacks for current sample
-            stack_size = 1
-            node_idx_stack[0] = 0  # root node
-            weight_stack[0] = 1  # all the samples are in the root node
-            total_weight = 0
-
-            while stack_size > 0:
-                # pop the stack
-                stack_size -= 1
-                current_node_idx = node_idx_stack[stack_size]
-                current_node = &self.nodes[current_node_idx]
-
-                if current_node.left_child == _TREE_LEAF:
-                    # leaf node
-                    out[sample_idx] += (weight_stack[stack_size] *
-                                        self.value[current_node_idx])
-                    total_weight += weight_stack[stack_size]
-                else:
-                    # non-leaf node
-
-                    # determine if the split feature is a target feature
-                    is_target_feature = False
-                    for feature_idx in range(target_features.shape[0]):
-                        if target_features[feature_idx] == current_node.feature:
-                            is_target_feature = True
-                            break
-
-                    if is_target_feature:
-                        # In this case, we push left or right child on stack
-                        if X[sample_idx, feature_idx] <= current_node.threshold:
-                            node_idx_stack[stack_size] = current_node.left_child
-                        else:
-                            node_idx_stack[stack_size] = current_node.right_child
-                        stack_size += 1
-                    else:
-                        # In this case, we push both children onto the stack,
-                        # and give a weight proportional to the number of
-                        # samples going through each branch.
-
-                        # push left child
-                        node_idx_stack[stack_size] = current_node.left_child
-                        left_sample_frac = (
-                            self.nodes[current_node.left_child].weighted_n_node_samples
-                            / current_node.weighted_n_node_samples
-                        )
-                        current_weight = weight_stack[stack_size]
-                        weight_stack[stack_size] = current_weight * left_sample_frac
-                        stack_size += 1
-
-                        # push right child
-                        node_idx_stack[stack_size] = current_node.right_child
-                        weight_stack[stack_size] = (
-                            current_weight * (1 - left_sample_frac))
-                        stack_size += 1
-
-            # Sanity check. Should never happen.
-            if not (0.999 < total_weight < 1.001):
-                raise ValueError("Total weight should be 1.0 but was %.9f" %
-                                 total_weight)
 
 
 def _check_value_ndarray(value_ndarray, expected_dtype, expected_shape):

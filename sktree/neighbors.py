@@ -2,12 +2,28 @@ import numbers
 from copy import copy
 
 import numpy as np
+from joblib import Parallel, delayed
 from sklearn.base import BaseEstimator, MetaEstimatorMixin
 from sklearn.exceptions import NotFittedError
 from sklearn.neighbors import NearestNeighbors
 from sklearn.utils.validation import check_is_fitted
 
 from sktree.tree._neighbors import _compute_distance_matrix, compute_forest_similarity_matrix
+
+
+def forest_distance(clf, X, Y) -> float:
+    """Compute a valid distance metric between two samples using a decision-tree or forest model."""
+    X = np.atleast_2d(X)
+    Y = np.atleast_2d(Y)
+    XY = np.concatenate((X, Y), axis=0)
+    aff_matrix = compute_forest_similarity_matrix(clf, XY)
+
+    # dists should be (2, 2)
+    dists = _compute_distance_matrix(aff_matrix)
+    if dists.shape != (2, 2):
+        raise RuntimeError("This shouldn't happen")
+
+    return dists[0, 1]
 
 
 class NearestNeighborsMetaEstimator(BaseEstimator, MetaEstimatorMixin):
@@ -29,14 +45,31 @@ class NearestNeighborsMetaEstimator(BaseEstimator, MetaEstimatorMixin):
         See :class:`sklearn.neighbors.NearestNeighbors` for details.
     n_jobs : int, optional
         The number of parallel jobs to run for neighbors, by default None.
+    force_fit : bool, optional
+        If True, the estimator will be fit even if it is already fitted, by default False.
+    verbose : bool, optional
+        If True, print out additional information, by default False.
     """
 
-    def __init__(self, estimator, n_neighbors=5, radius=1.0, algorithm="auto", n_jobs=None):
+    _supports_multi_radii: bool = True
+
+    def __init__(
+        self,
+        estimator,
+        n_neighbors=5,
+        radius=1.0,
+        algorithm="auto",
+        n_jobs=None,
+        force_fit=False,
+        verbose: bool = False,
+    ):
         self.estimator = estimator
         self.n_neighbors = n_neighbors
         self.algorithm = algorithm
         self.radius = radius
         self.n_jobs = n_jobs
+        self.force_fit = force_fit
+        self.verbose = verbose
 
     def fit(self, X, y=None):
         """Fit the nearest neighbors estimator from the training dataset.
@@ -56,15 +89,31 @@ class NearestNeighborsMetaEstimator(BaseEstimator, MetaEstimatorMixin):
         self : object
             Fitted estimator.
         """
-        X, y = self._validate_data(X, y, accept_sparse="csc")
+        if y is not None:
+            X, y = self._validate_data(X, y, accept_sparse="csc")
+        else:
+            X = self._validate_data(X, accept_sparse="csc")
 
         self.estimator_ = copy(self.estimator)
-        try:
-            check_is_fitted(self.estimator_)
-        except NotFittedError:
+        if self.force_fit:
             self.estimator_.fit(X, y)
+        else:
+            try:
+                check_is_fitted(self.estimator_)
+            except NotFittedError:
+                self.estimator_.fit(X, y)
 
-        self._fit(X, self.n_neighbors)
+        if self.verbose:
+            print(f"Finished fitting estimator: {self.estimator_}")
+
+        # get the number of neighbors to use in estimating the CMI
+        n_samples = X.shape[0]
+        if self.n_neighbors < 1:
+            knn_here = max(1, int(self.n_neighbors * n_samples))
+        else:
+            knn_here = max(1, int(self.n_neighbors))
+
+        self._fit(X, knn_here)
         return self
 
     def _fit(self, X, n_neighbors):
@@ -76,11 +125,19 @@ class NearestNeighborsMetaEstimator(BaseEstimator, MetaEstimatorMixin):
         )
 
         # compute the distance matrix
-        aff_matrix = compute_forest_similarity_matrix(self.estimator_, X)
-        dists = _compute_distance_matrix(aff_matrix)
+        dists = self._compute_distance_matrix(X)
+
+        if self.verbose:
+            print(f"Finished computing distance matrix: {dists.shape}")
 
         # fit the nearest-neighbors estimator
         self.neigh_est_.fit(dists)
+
+    def _compute_distance_matrix(self, X):
+        # compute the distance matrix
+        aff_matrix = compute_forest_similarity_matrix(self.estimator_, X)
+        dists = _compute_distance_matrix(aff_matrix)
+        return dists
 
     def kneighbors(self, X=None, n_neighbors=None, return_distance=True):
         """Find the K-neighbors of a point.
@@ -182,26 +239,60 @@ class NearestNeighborsMetaEstimator(BaseEstimator, MetaEstimatorMixin):
 
         if X is not None:
             n_samples = X.shape[0]
+            X = self._compute_distance_matrix(X)
+
+            if self.verbose:
+                print(f"Finished computing distance matrix: {X.shape}")
         else:
             n_samples = self.neigh_est_.n_samples_fit_
 
-        if isinstance(radius, numbers.Number):
-            radius = [radius] * n_samples
-
         # now construct nearest neighbor indices and distances within radius
-        nn_ind_data = np.zeros((n_samples,), dtype=object)
-        nn_dist_data = np.zeros((n_samples,), dtype=object)
-        for idx in range(n_samples):
-            nn = self.neigh_est_.radius_neighbors(
-                X=X, radius=radius[idx], return_distance=return_distance, sort_results=sort_results
+        if self.verbose:
+            print(f"Computing radius neighbors for {n_samples} samples")
+
+        if isinstance(radius, numbers.Number):
+            # return only neighbors within one fixed radius across all samples
+            return self.neigh_est_.radius_neighbors(
+                X=X, radius=radius, return_distance=return_distance, sort_results=sort_results
+            )
+        else:
+            # forest-based nearest neighbors needs to support all samples to get pairwise
+            # distances before querying the radius neighbors API
+            if X is None:
+                raise RuntimeError("Must provide X if radius is an array of numbers")
+
+            if len(radius) != n_samples:
+                raise RuntimeError(f"Expected {n_samples} radius values, got {len(radius)}")
+
+            nn_inds_arr = np.zeros((n_samples,), dtype=object)
+            nn_dist_arr = np.zeros((n_samples,), dtype=object)
+
+            # compute radius neighbors for each sample in parallel
+            if self.verbose:
+                print("Computing radius neighbors in parallel...")
+
+            result = Parallel(n_jobs=self.n_jobs)(
+                delayed(_parallel_radius_nbrs)(
+                    self.neigh_est_.radius_neighbors,
+                    np.atleast_2d(X[idx, :]),
+                    radius[idx],
+                    return_distance,
+                )
+                for idx in range(n_samples)
             )
 
-            if return_distance:
-                nn_ind_data[idx] = nn[0][idx]
-                nn_dist_data[idx] = nn[1][idx]
-            else:
-                nn_ind_data[idx] = nn
+            for idx, nn in enumerate(result):
+                if return_distance:
+                    nn_inds_arr[idx] = nn[0][0]
+                    nn_dist_arr[idx] = nn[1][0]
+                else:
+                    nn_inds_arr[idx] = nn[0]
 
-        if return_distance:
-            return nn_dist_data, nn_ind_data
-        return nn_ind_data
+            if return_distance:
+                return nn_dist_arr, nn_inds_arr
+            else:
+                return nn_inds_arr
+
+
+def _parallel_radius_nbrs(radius_nbr_func, X, radius, return_distance):
+    return radius_nbr_func(X, radius, return_distance)

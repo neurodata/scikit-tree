@@ -14,12 +14,12 @@ cimport numpy as cnp
 from libcpp.vector cimport vector
 
 from .._lib.sklearn.tree._splitter cimport SplitRecord
-from .._lib.sklearn.tree._tree cimport DOUBLE_t  # Type of y, sample_weight
-from .._lib.sklearn.tree._tree cimport DTYPE_t  # Type of X
-from .._lib.sklearn.tree._tree cimport INT32_t  # Signed 32 bit integer
-from .._lib.sklearn.tree._tree cimport SIZE_t  # Type for indices and counters
-from .._lib.sklearn.tree._tree cimport UINT32_t  # Unsigned 32 bit integer
 from .._lib.sklearn.tree._tree cimport Node, Tree, TreeBuilder
+from .._lib.sklearn.tree._utils cimport DOUBLE_t  # Type of y, sample_weight
+from .._lib.sklearn.tree._utils cimport DTYPE_t  # Type of X
+from .._lib.sklearn.tree._utils cimport INT32_t  # Signed 32 bit integer
+from .._lib.sklearn.tree._utils cimport SIZE_t  # Type for indices and counters
+from .._lib.sklearn.tree._utils cimport UINT32_t  # Unsigned 32 bit integer
 from ._oblique_splitter cimport ObliqueSplitRecord
 
 
@@ -35,7 +35,8 @@ cdef class ObliqueTree(Tree):
     cdef int _set_split_node(
         self,
         SplitRecord* split_node,
-        Node *node
+        Node *node,
+        SIZE_t node_id
     )  nogil except -1
     cdef DTYPE_t _compute_feature(
         self,

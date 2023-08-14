@@ -18,9 +18,9 @@ exclude =
     .pytest_cache
     .circleci
     paper
-    docs/_build
-    docs/generated
-    docs/auto_examples
+    doc/_build
+    doc/generated
+    doc/auto_examples
     validation
     build
     build-install 

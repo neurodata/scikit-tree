@@ -16,7 +16,8 @@ def get_git_revision_hash(submodule) -> str:
 @click.option("--build-dir", default="build", help="Build directory; default is `$PWD/build`")
 @click.option("--clean", is_flag=True, help="Clean previously built docs before building")
 @click.option("--noplot", is_flag=True, help="Build docs without plots")
-def docs(build_dir, clean=False, noplot=False):
+@click.pass_context
+def docs(ctx, build_dir, clean=False, noplot=False):
     """📖 Build documentation"""
     if clean:
         doc_dir = "./docs/_build"
@@ -31,12 +32,13 @@ def docs(build_dir, clean=False, noplot=False):
 
     util.run(["pip", "install", "-q", "-r", "doc_requirements.txt"])
 
-    os.environ["SPHINXOPTS"] = "-W"
-    os.environ["PYTHONPATH"] = f'{site_path}{os.sep}:{os.environ.get("PYTHONPATH", "")}'
-    if noplot:
-        util.run(["make", "-C", "docs", "clean", "html-noplot"], replace=True)
-    else:
-        util.run(["make", "-C", "docs", "clean", "html"], replace=True)
+    ctx.invoke(meson.docs)
+    # os.environ["SPHINXOPTS"] = "-W"
+    # os.environ["PYTHONPATH"] = f'{site_path}{os.sep}:{os.environ.get("PYTHONPATH", "")}'
+    # if noplot:
+    #     util.run(["make", "-C", "docs", "clean", "html-noplot"], replace=True)
+    # else:
+    #     util.run(["make", "-C", "docs", "clean", "html"], replace=True)
 
 
 @click.command()
@@ -51,6 +53,8 @@ def coverage(ctx):
 @click.option("--forcesubmodule", is_flag=True, help="Force submodule pull.")
 def setup_submodule(forcesubmodule=False):
     """Build scikit-tree using submodules.
+
+    git submodule set-branch -b submodulev2 sktree/_lib/sklearn
 
     git submodule update --recursive --remote
 

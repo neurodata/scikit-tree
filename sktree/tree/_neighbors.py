@@ -1,5 +1,7 @@
 import numpy as np
 
+from sktree.utils import check_is_forest
+
 
 def compute_forest_similarity_matrix(forest, X):
     """Compute the similarity matrix of samples in X using a trained forest.
@@ -20,6 +22,8 @@ def compute_forest_similarity_matrix(forest, X):
     aff_matrix : array-like of shape (n_samples, n_samples)
         The estimated distance matrix.
     """
+    check_is_forest(forest, allow_tree=True)
+
     if hasattr(forest, "estimator_"):
         # apply to the leaves
         X_leaves = forest.apply(X)

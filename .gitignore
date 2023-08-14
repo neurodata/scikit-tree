@@ -14,17 +14,17 @@ sktree/_lib/sklearn/
 *.png
 
 # Sphinx documentation
-docs/_build/
-docs/generated/
-docs/auto_examples/
-docs/auto_tutorials/
-docs/modules/generated/
-docs/sphinxext/cachedir
+doc/_build/
+doc/generated/
+doc/auto_examples/
+doc/auto_tutorials/
+doc/modules/generated/
+doc/sphinxext/cachedir
 pip-log.txt
 .coverage
 tags
-docs/coverages
-docs/samples
+doc/coverages
+doc/samples
 cover
 examples/*.jpg
 

@@ -1,13 +1,6 @@
 # See: https://circleci.com/blog/deploying-documentation-to-github-pages-with-continuous-integration/
 version: 2.1
 
-# Aliases to reuse
-_defaults: &defaults
-  docker:
-    # CircleCI maintains a library of pre-built images
-    # documented at https://circleci.com/docs/2.0/circleci-images/
-    - image: cimg/python:3.9
-
 # document commands used by downstream jobs
 commands:
   check-skip:
@@ -70,7 +63,10 @@ commands:
 jobs:
   # Build scikit-tree from source
   build_scikit_tree:
-    <<: *defaults
+    docker:
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/doc/2.0/circleci-images/
+      - image: cimg/python:3.9
     steps:
       - checkout
       - check-skip
@@ -110,7 +106,10 @@ jobs:
             - .
 
   build_docs:
-    <<: *defaults
+    docker:
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/doc/2.0/circleci-images/
+      - image: cimg/python:3.9
     steps:
       - attach_workspace:
           at: ~/
@@ -131,15 +130,15 @@ jobs:
             python ./spin docs
 
       - store_artifacts:
-          path: docs/_build/html
+          path: doc/_build/html
           destination: dev
       
       - store_artifacts:
-          path: docs/_build/html_stable/
+          path: doc/_build/html_stable/
           destination: stable
           
       - persist_to_workspace:
-          root: docs/_build
+          root: doc/_build
           paths:
             - html
             - html_stable
@@ -151,7 +150,7 @@ jobs:
       - checkout
 
       - attach_workspace:
-          at: docs/_build
+          at: doc/_build
 
       - restore_cache:
           keys:
@@ -174,10 +173,10 @@ jobs:
           command: |
             if [ "${CIRCLE_BRANCH}" == "main" ]; then
               echo "Deploying dev docs for ${CIRCLE_BRANCH}.";
-              gh-pages --dotfiles --message "docs updates [skip ci] (${CIRCLE_BUILD_NUM})" --dist docs/_build/html --dest ./dev
+              gh-pages --dotfiles --message "docs updates [skip ci] (${CIRCLE_BUILD_NUM})" --dist doc/_build/html --dest ./dev
             else
               echo "Deploying stable docs for ${CIRCLE_BRANCH}.";
-              gh-pages --dotfiles --message "docs updates [skip ci] (${CIRCLE_BUILD_NUM})" --dist docs/_build/html --dest ./stable
+              gh-pages --dotfiles --message "docs updates [skip ci] (${CIRCLE_BUILD_NUM})" --dist doc/_build/html --dest ./stable
             fi;
 
       - save_cache:
@@ -186,16 +185,13 @@ jobs:
             - ~/sktree
 
 workflows:
-  default:
+  build-docs:
     jobs:
-      - build_scikit_tree:
-          name: build_scikit_tree
+      - build_scikit_tree
       - build_docs:
-          name: build_docs
           requires:
             - build_scikit_tree
       - docs-deploy:
-          name: docs-deploy
           requires:
             - build_docs
           filters:

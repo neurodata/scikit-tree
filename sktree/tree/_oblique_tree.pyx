@@ -93,7 +93,8 @@ cdef class ObliqueTree(Tree):
         self,
         int n_features,
         cnp.ndarray[SIZE_t, ndim=1] n_classes,
-        int n_outputs
+        int n_outputs,
+        # cnp.ndarray[INT32_t, ndim=1] n_categories
     ):
         """Constructor."""
         # Input/Output layout
@@ -108,6 +109,11 @@ cdef class ObliqueTree(Tree):
         cdef SIZE_t k
         for k in range(n_outputs):
             self.n_classes[k] = n_classes[k]
+
+        # self.n_categories = NULL
+        # safe_realloc(&self.n_categories, n_features)
+        # for k in range(n_features):
+        #     self.n_categories[k] = n_categories[k]
 
         # Inner structures
         self.max_depth = 0
@@ -124,7 +130,9 @@ cdef class ObliqueTree(Tree):
         return (ObliqueTree, (
             self.n_features,
             sizet_ptr_to_ndarray(self.n_classes, self.n_outputs),
-            self.n_outputs), self.__getstate__()
+            self.n_outputs,
+            # int32_ptr_to_ndarray(self.n_categories, self.n_features)
+            ), self.__getstate__()
             )
 
     def __getstate__(self):
@@ -229,14 +237,13 @@ cdef class ObliqueTree(Tree):
         self.capacity = capacity
         return 0
 
-    cdef int _set_split_node(self, SplitRecord* split_node, Node *node) except -1 nogil:
+    cdef inline int _set_split_node(self, SplitRecord* split_node, Node *node, SIZE_t node_id) except -1 nogil:
         """Set node data.
         """
         # Cython type cast split record into its inherited split record
         # For reference, see:
         # https://www.codementor.io/@arpitbhayani/powering-inheritance-in-c-using-structure-composition-176sygr724
         cdef ObliqueSplitRecord* oblique_split_node = <ObliqueSplitRecord*>(split_node)
-        cdef SIZE_t node_id = self.node_count
 
         node.feature = deref(oblique_split_node).feature
         node.threshold = deref(oblique_split_node).threshold

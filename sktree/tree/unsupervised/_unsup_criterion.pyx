@@ -220,7 +220,7 @@ cdef class UnsupervisedCriterion(BaseCriterion):
         self,
         SIZE_t start,
         SIZE_t end
-    ) nogil:
+    ) noexcept nogil:
         """Set sample pointers in the criterion.
 
         Set given start and end sample_indices. Also will update node statistics,
@@ -291,7 +291,7 @@ cdef class TwoMeans(UnsupervisedCriterion):
 
     cdef double node_impurity(
         self
-    ) nogil:
+    ) noexcept nogil:
         """Evaluate the impurity of the current node.
 
         Evaluate the TwoMeans criterion impurity as variance of the current node,
@@ -323,7 +323,7 @@ cdef class TwoMeans(UnsupervisedCriterion):
         self,
         double* impurity_left,
         double* impurity_right
-    ) nogil:
+    ) noexcept nogil:
         """Evaluate the impurity in children nodes.
 
         i.e. the impurity of the left child (sample_indices[start:pos]) and the

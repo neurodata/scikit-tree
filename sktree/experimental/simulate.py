@@ -2,6 +2,8 @@ import numpy as np
 import scipy.linalg
 import scipy.special
 import scipy.stats
+from scipy.integrate import nquad
+from scipy.stats import multivariate_normal
 
 
 def simulate_helix(
@@ -221,3 +223,225 @@ def simulate_multivariate_gaussian(mean=None, cov=None, d=2, n_samples=1000, see
     data = rng.multivariate_normal(mean=mean, cov=cov, size=(n_samples))
 
     return data, mean, cov
+
+
+def embed_high_dims(data, n_dims=50, random_state=None):
+    rng = np.random.default_rng(random_state)
+
+    new_data = np.zeros((data.shape[0], n_dims + data.shape[1]))
+    new_data[:, : data.shape[1]] = data
+
+    for idim in range(n_dims):
+        new_col = rng.standard_normal(size=(data.shape[0],))
+        new_data[:, data.shape[1] + idim] = new_col
+
+    return new_data
+
+
+def simulate_separate_gaussians(n_dims=2, n_samples=1000, n_classes=2, pi=None, seed=None):
+    """Simulate data from separate multivariate Gaussians.
+
+    Parameters
+    ----------
+    n_dims : int
+        The dimensionality of the data. The default is 2.
+    n_samples : int
+        The number of samples to generate. The default is 1000.
+    n_classes : int
+        The number of classes to generate. The default is 2.
+    pi : array-like of shape (n_classes,)
+        The class probabilities. If None (default), then uniform class probabilities are used.
+    seed : int
+        The random seed to feed to :func:`numpy.random.default_rng`. The default is None.
+
+    Returns
+    -------
+    data : array-like of shape (n_samples, n_dims)
+        The generated data.
+    y : array-like of shape (n_samples,)
+        The class labels.
+    means : list of array-like of shape (n_dims,)
+        The means of the Gaussians from each class.
+    sigmas : list of array-like of shape (n_dims, n_dims)
+        The covariance matrices of the Gaussians from each class.
+    pi : array-like of shape (n_classes,)
+        The class probabilities.
+
+    Notes
+    -----
+    This simulates data from separate multivariate Gaussians, where each class has its own
+    multivariate Gaussian distribution. The class labels are sampled from a multinomial distribution
+    with probabilities `pi`.
+
+    The ground-truth computation of the MI depends on
+    """
+    rng = np.random.default_rng(seed)
+
+    if pi is None:
+        pi = np.ones((n_classes,)) / n_classes
+    else:
+        if len(pi) != n_classes:
+            raise RuntimeError(f"pi should be of length {n_classes}")
+
+    # first sample the class labels according to class probabilities
+    counts = rng.multinomial(n_samples, pi, size=1)[0]
+
+    # now sample the multivariate Gaussian for each class
+    means = [np.zeros((n_dims,))]
+    sigmas = [np.eye(n_dims)]
+    for _ in range(1, n_classes):
+        mean = rng.standard_normal(size=(n_dims,))
+        sigma = np.eye(n_dims)
+
+        means.append(mean)
+        sigmas.append(sigma)
+
+    # now sample the data
+    X_data = []
+    y_data = []
+    for k in range(n_classes):
+        X_data.append(rng.multivariate_normal(means[k], sigmas[k], counts[k]))
+        y_data.append(np.repeat(k, counts[k]))
+    X = np.concatenate(tuple(X_data))
+    y = np.concatenate(tuple(y_data))
+
+    return X, y, means, sigmas, pi
+
+
+def mi_separated_gaussians(means, sigmas, pi, seed=None):
+    """Compute the ground-truth mutual information between the class labels and the data.
+
+    Parameters
+    ----------
+    means : list of array-like of shape (n_dims,)
+        The means of the Gaussians from each class. The list has length ``n_classes``.
+    sigmas : list of array-like of shape (n_dims, n_dims)
+        The covariance matrices of the Gaussians from each class.
+        The list has length ``n_classes``.
+    pi : array-like of shape (n_classes,)
+        The class probabilities.
+    seed : int
+        The random seed to feed to :func:`numpy.random.default_rng`. The default is None.
+
+    Returns
+    -------
+    I_XY : float
+        The ground-truth mutual information between the class labels and the data.
+    """
+    n_dims = means[0].shape[0]
+    n_classes = len(sigmas)
+
+    # compute ground-truth MI
+    base = np.exp(1)
+    # H_Y = entropy(pi, base=base)
+
+    def func(*args):
+        # points at which to evaluate the multivariate-Gaussian
+        x_points = np.array(args)
+
+        # compute the probability of the multivariate-Gaussian at various points in the
+        # d-dimensional space
+        p = 0.0
+        for k in range(n_classes):
+            p += pi[k] * multivariate_normal.pdf(x_points, mean=means[k], cov=sigmas[k])
+
+        # compute the log-probability
+        return -p * np.log(p) / np.log(base)
+
+    # limits over each dimension of the multivariate-Gaussian
+    lims = [[-10, 10]] * n_dims
+    H_X, _ = nquad(func, ranges=lims)
+
+    # now compute H(X|Y)
+    H_XY = _conditional_entropy_separated_gaussians(sigmas, pi, base)
+
+    I_XY = H_X - H_XY
+    return I_XY
+
+
+def _conditional_entropy_separated_gaussians(sigmas, pi, base):
+    """Conditional entropy.
+
+    Computes H(X | Y), where X can be multivariate and is assumed to be multivariate-Gaussian.
+    The determinant of the covariance matrix of X is used to compute the entropy.
+
+    Y is assumed to be discrete.
+    X is some multivariate-Gaussian, where the covariance matrix is given by `sigmas`
+    and provides the entropy of X for each class.
+    """
+    n_classes = len(sigmas)
+    n_dims = sigmas[0].shape[0]
+
+    # now compute H(Y|X) = H(X, Y) - H(X)
+    H_XY = 0.0
+    for k in range(n_classes):
+        # [d * log(2 * pi) + log(det(sigma)) + d] / (2 * log(base))
+        H_XY += (
+            pi[k]
+            * (n_dims * np.log(2 * np.pi) + np.log(np.linalg.det(sigmas[k])) + n_dims)
+            / (2.0 * np.log(base))
+        )
+    return H_XY
+
+
+def cmi_separated_gaussians(means, sigmas, pi, condition_idx, seed=None):
+    """Compute the ground-truth conditional mutual information.
+
+    This computes the CMI between the class labels and the data.
+    """
+    n_classes = len(means)
+
+    x_idx = np.ones((means[0].shape[0],), dtype=np.bool_)
+    x_idx[condition_idx] = False
+    # Z_sigmas = [sigma[condition_idx, condition_idx] for sigma in sigmas]
+    # X_sigmas = [sigma[x_idx, x_idx] for sigma in sigmas]
+    base = np.exp(1)
+
+    def func(*args):
+        # points at which to evaluate the multivariate-Gaussian
+        x_points = np.array(args)
+
+        # compute the probability of the multivariate-Gaussian at various points in the
+        # d-dimensional space
+        p = 0.0
+        for k in range(n_classes):
+            p += pi[k] * multivariate_normal.pdf(x_points, mean=means[k], cov=sigmas[k])
+
+        # compute the log-probability
+        return -p * np.log(p) / np.log(base)
+
+    # integrate to get approximate H(X, Z)
+    n_dims = means[0].shape[0]
+    lims = [[-10, 10]] * n_dims
+    H_XZ, _ = nquad(func, ranges=lims)
+
+    def func(*args):
+        # points at which to evaluate the multivariate-Gaussian
+        x_points = np.array(args)
+
+        # compute the probability of the multivariate-Gaussian at various points in the
+        # d-dimensional space
+        p = 0.0
+        for k in range(n_classes):
+            p += pi[k] * multivariate_normal.pdf(x_points, mean=z_means[k], cov=z_sigmas[k])
+
+        # compute the log-probability
+        return -p * np.log(p) / np.log(base)
+
+    # get approximate H(Z)
+    z_means = [mean[condition_idx] for mean in means]
+    z_sigmas = [sigma[np.ix_(condition_idx, condition_idx)] for sigma in sigmas]
+    n_dims = z_means[0].shape[0]
+    lims = [[-10, 10]] * n_dims
+    H_Z, _ = nquad(func, ranges=lims)
+
+    # now compute H(X, Z|Y)
+    H_XZY = _conditional_entropy_separated_gaussians(sigmas, pi, base)
+
+    # lastly compute H(Z |Y)
+    H_ZY = _conditional_entropy_separated_gaussians(z_sigmas, pi, base)
+
+    # now compute H(X|Y,Z)
+    print(H_XZ, H_Z, H_XZY, H_ZY)
+    I_XYZ = H_XZ - H_Z - H_XZY + H_ZY
+    return I_XYZ

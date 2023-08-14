@@ -31,6 +31,8 @@ cdef class PatchSplitter(BaseObliqueSplitter):
         SIZE_t min_samples_leaf,
         double min_weight_leaf,
         object random_state,
+        const cnp.int8_t[:] monotonic_cst,
+        # bint breiman_shortcut,
         SIZE_t[:] min_patch_dims,
         SIZE_t[:] max_patch_dims,
         cnp.uint8_t[::1] dim_contiguous,
@@ -91,9 +93,10 @@ cdef class PatchSplitter(BaseObliqueSplitter):
         object X,
         const DOUBLE_t[:, ::1] y,
         const DOUBLE_t[:] sample_weight,
-        const unsigned char[::1] feature_has_missing,
+        const unsigned char[::1] missing_values_in_feature_mask,
+        # const INT32_t[:] n_categories
     ) except -1:
-        BaseObliqueSplitter.init(self, X, y, sample_weight, feature_has_missing)
+        BaseObliqueSplitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
 
         return 0
 
@@ -157,7 +160,8 @@ cdef class BaseDensePatchSplitter(PatchSplitter):
         object X,
         const DOUBLE_t[:, ::1] y,
         const DOUBLE_t[:] sample_weight,
-        const unsigned char[::1] feature_has_missing
+        const unsigned char[::1] missing_values_in_feature_mask,
+        # const INT32_t[:] n_categories
     ) except -1:
         """Initialize the splitter
 
@@ -165,7 +169,7 @@ cdef class BaseDensePatchSplitter(PatchSplitter):
         or 0 otherwise.
         """
         # Call parent init
-        PatchSplitter.init(self, X, y, sample_weight, feature_has_missing)
+        PatchSplitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
 
         self.X = X
         return 0
@@ -498,7 +502,7 @@ cdef class BestPatchSplitterTester(BestPatchSplitter):
 
         return proj_vecs
 
-    cpdef init_test(self, X, y, sample_weight, feature_has_missing=None):
+    cpdef init_test(self, X, y, sample_weight, missing_values_in_feature_mask=None):
         """Initializes the state of the splitter.
 
         Used for testing purposes.
@@ -512,7 +516,7 @@ cdef class BestPatchSplitterTester(BestPatchSplitter):
             regression).
         sample_weight : array-like, shape (n_samples,)
             Sample weights.
-        feature_has_missing : array-like, shape (n_features,)
+        missing_values_in_feature_mask : array-like, shape (n_features,)
             Whether or not a feature has missing values.
         """
-        self.init(X, y, sample_weight, feature_has_missing)
+        self.init(X, y, sample_weight, missing_values_in_feature_mask)

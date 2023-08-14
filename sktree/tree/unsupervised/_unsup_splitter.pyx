@@ -34,9 +34,15 @@ cdef inline void _init_split(SplitRecord* self, SIZE_t start_pos) noexcept nogil
 cdef class UnsupervisedSplitter(BaseSplitter):
     """Base class for unsupervised splitters."""
 
-    def __cinit__(self, UnsupervisedCriterion criterion, SIZE_t max_features,
-                  SIZE_t min_samples_leaf, double min_weight_leaf,
-                  object random_state, *argv):
+    def __cinit__(
+        self,
+        UnsupervisedCriterion criterion,
+        SIZE_t max_features,
+        SIZE_t min_samples_leaf,
+        double min_weight_leaf,
+        object random_state,
+        *argv
+    ):
         """
         Parameters
         ----------
@@ -174,7 +180,9 @@ cdef class BestUnsupervisedSplitter(UnsupervisedSplitter):
         self,
         double impurity,
         SplitRecord* split,
-        SIZE_t* n_constant_features
+        SIZE_t* n_constant_features,
+        double lower_bound,
+        double upper_bound,
     ) except -1 nogil:
         """Find the best_split split on node samples[start:end].
 

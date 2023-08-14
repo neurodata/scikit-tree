@@ -6,6 +6,7 @@ from sklearn.utils.validation import check_is_fitted, check_random_state
 
 from sktree._lib.sklearn.tree import BaseDecisionTree
 from sktree._lib.sklearn.tree._tree import DTYPE
+from sktree.utils import check_is_forest
 
 from ._marginal import apply_marginal_tree
 
@@ -56,8 +57,7 @@ def apply_marginal(
         For each datapoint x in X and for each tree in the forest, return the
         index of the leaf x ends up in. If it is a tree ``n_estimators=1``.
     """
-    check_is_fitted(est)
-
+    check_is_forest(est)
     if hasattr(est, "tree_type") and est.tree_type == "oblique":
         raise RuntimeError("This method only supports axis-aligned trees.")
 

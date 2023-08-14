@@ -40,7 +40,7 @@ Fast-BIC
 
 The Bayesian Information Criterion (BIC) is a popular model seleciton
 criteria that is based on the log likelihood of the model given data.
-Fast-BIC [Madhyastha2020]_ is a method that combines the speed of the
+Fast-BIC :footcite:`Meghana2019_geodesicrf` is a method that combines the speed of the
 :class:`sklearn.cluster.KMeans` clustering method with the model flexibility
 of Mclust-BIC. It sorts data for each feature and tries all possible splits to
 assign data points to one of two Gaussian distributions based on their position
@@ -64,14 +64,13 @@ where the prior, mean, and variance are defined as follows, respectively:
 
 .. _unsup_evaluation:
 
-.. topic:: References
-
- .. [Madhyastha2020] Madhyastha, Meghana, et al. :doi:`"Geodesic Forests"
-    <10.1145/3394486.3403094>`, KDD 2020, 513-523, 2020.
-
 Evaluating Unsupervised Trees
 -----------------------------
 
 In clustering settings, there may be no natural
 notion of “true” class-labels, thus the efficacy of the clustering scheme is
 often measured based on distance based metrics such as :func:`sklearn.metrics.adjusted_rand_score`.
+
+.. topic:: References
+
+ .. footbibliography::

@@ -1,24 +1,10 @@
-import joblib
 import numpy as np
 import pytest
-from numpy.testing import (
-    assert_allclose,
-    assert_almost_equal,
-    assert_array_almost_equal,
-    assert_array_equal,
-)
+from numpy.testing import assert_allclose
 from sklearn import datasets
 from sklearn.base import is_classifier
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.datasets import make_blobs
-from sklearn.metrics import (
-    accuracy_score,
-    adjusted_rand_score,
-    mean_poisson_deviance,
-    mean_squared_error,
-)
+from sklearn.metrics import accuracy_score, mean_poisson_deviance, mean_squared_error
 from sklearn.model_selection import cross_val_score
-from sklearn.tree._tree import TREE_LEAF
 from sklearn.utils._testing import skip_if_32bit
 from sklearn.utils.estimator_checks import parametrize_with_checks
 
@@ -136,35 +122,6 @@ ALL_TREES = [
 ]
 
 
-def assert_tree_equal(d, s, message):
-    assert s.node_count == d.node_count, "{0}: inequal number of node ({1} != {2})".format(
-        message, s.node_count, d.node_count
-    )
-
-    assert_array_equal(d.children_right, s.children_right, message + ": inequal children_right")
-    assert_array_equal(d.children_left, s.children_left, message + ": inequal children_left")
-
-    external = d.children_right == TREE_LEAF
-    internal = np.logical_not(external)
-
-    assert_array_equal(d.feature[internal], s.feature[internal], message + ": inequal features")
-    assert_array_equal(
-        d.threshold[internal], s.threshold[internal], message + ": inequal threshold"
-    )
-    assert_array_equal(
-        d.n_node_samples.sum(),
-        s.n_node_samples.sum(),
-        message + ": inequal sum(n_node_samples)",
-    )
-    assert_array_equal(d.n_node_samples, s.n_node_samples, message + ": inequal n_node_samples")
-
-    assert_almost_equal(d.impurity, s.impurity, err_msg=message + ": inequal impurity")
-
-    assert_array_almost_equal(
-        d.value[external], s.value[external], err_msg=message + ": inequal value"
-    )
-
-
 @parametrize_with_checks(
     [
         ObliqueDecisionTreeClassifier(random_state=12),
@@ -178,134 +135,6 @@ def test_sklearn_compatible_estimator(estimator, check):
     if check.func.__name__ in ["check_requires_y_none"]:
         pytest.skip()
     check(estimator)
-
-
-@parametrize_with_checks(
-    [
-        UnsupervisedDecisionTree(random_state=12),
-        UnsupervisedObliqueDecisionTree(random_state=12),
-    ]
-)
-def test_sklearn_compatible_transformer(estimator, check):
-    if check.func.__name__ in [
-        # Cannot apply agglomerative clustering on < 2 samples
-        "check_methods_subset_invariance",
-        # clustering accuracy is poor when using TwoMeans on 1 single tree
-        "check_clustering",
-        # sample weights do not necessarily imply a sample is not used in clustering
-        "check_sample_weights_invariance",
-        # sample order is not preserved in predict
-        "check_methods_sample_order_invariance",
-    ]:
-        pytest.skip()
-    check(estimator)
-
-
-@pytest.mark.parametrize("name,Tree", TREE_CLUSTERS.items())
-@pytest.mark.parametrize("criterion", CLUSTER_CRITERIONS)
-def test_check_simulation(name, Tree, criterion):
-    """Test axis-aligned Gaussian blobs."""
-    n_samples = 100
-    n_classes = 2
-    X, y = make_blobs(n_samples=n_samples, centers=n_classes, n_features=6, random_state=1234)
-
-    est = Tree(criterion=criterion, random_state=1234)
-    est.fit(X)
-    sim_mat = est.compute_similarity_matrix(X)
-
-    # there is quite a bit of variance in the performance at the tree level
-    if criterion == "twomeans":
-        if "oblique" in name.lower():
-            expected_score = 0.02
-        else:
-            expected_score = 0.3
-    elif criterion == "fastbic":
-        if "oblique" in name.lower():
-            expected_score = 0.01
-        else:
-            expected_score = 0.4
-
-    # all ones along the diagonal
-    assert np.array_equal(sim_mat.diagonal(), np.ones(n_samples))
-
-    cluster = AgglomerativeClustering(n_clusters=n_classes).fit(sim_mat)
-    predict_labels = cluster.fit_predict(sim_mat)
-    score = adjusted_rand_score(y, predict_labels)
-
-    # a single decision tree does not fit well, but should still have a positive score
-    assert score >= expected_score, "Blobs failed with {0}, criterion = {1} and score = {2}".format(
-        name, criterion, score
-    )
-
-
-@pytest.mark.parametrize("name,Tree", TREE_CLUSTERS.items())
-@pytest.mark.parametrize("criterion", CLUSTER_CRITERIONS)
-def test_check_rotated_blobs(name, Tree, criterion):
-    """Test rotated axis-aligned Gaussian blobs, which should make oblique trees perform better."""
-    n_samples = 100
-    n_classes = 2
-    X, y = make_blobs(n_samples=n_samples, centers=n_classes, n_features=6, random_state=1234)
-
-    # apply rotation matrix to X
-
-    est = Tree(criterion=criterion, random_state=1234)
-    est.fit(X)
-    sim_mat = est.compute_similarity_matrix(X)
-
-    # there is quite a bit of variance in the performance at the tree level
-    if criterion == "twomeans":
-        if "oblique" in name.lower():
-            expected_score = 0.02
-        else:
-            expected_score = 0.3
-    elif criterion == "fastbic":
-        if "oblique" in name.lower():
-            expected_score = 0.01
-        else:
-            expected_score = 0.4
-
-    # all ones along the diagonal
-    assert np.array_equal(sim_mat.diagonal(), np.ones(n_samples))
-
-    cluster = AgglomerativeClustering(n_clusters=n_classes).fit(sim_mat)
-    predict_labels = cluster.fit_predict(sim_mat)
-    score = adjusted_rand_score(y, predict_labels)
-
-    # a single decision tree does not fit well, but should still have a positive score
-    assert score >= expected_score, "Blobs failed with {0}, criterion = {1} and score = {2}".format(
-        name, criterion, score
-    )
-
-
-@pytest.mark.parametrize("name,Tree", TREE_CLUSTERS.items())
-@pytest.mark.parametrize("criterion", CLUSTER_CRITERIONS)
-def test_check_iris(name, Tree, criterion):
-    # Check consistency on dataset iris.
-    n_classes = len(np.unique(iris.target))
-    est = Tree(criterion=criterion, random_state=12345)
-    est.fit(iris.data, iris.target)
-    sim_mat = est.compute_similarity_matrix(iris.data)
-
-    # there is quite a bit of variance in the performance at the tree level
-    if criterion == "twomeans":
-        if "oblique" in name.lower():
-            expected_score = 0.2
-        else:
-            expected_score = 0.01
-    elif criterion == "fastbic":
-        if "oblique" in name.lower():
-            expected_score = 0.001
-        else:
-            expected_score = 0.2
-
-    cluster = AgglomerativeClustering(n_clusters=n_classes).fit(sim_mat)
-    predict_labels = cluster.fit_predict(sim_mat)
-    score = adjusted_rand_score(iris.target, predict_labels)
-
-    # Two-means and fastBIC criterions doesn't perform well
-    assert score > expected_score, "Iris failed with {0}, criterion = {1} and score = {2}".format(
-        name, criterion, score
-    )
 
 
 def test_oblique_tree_sampling():
@@ -481,33 +310,6 @@ def test_patch_tree_compared():
     assert np.mean(cross_val_score(clf, X, y, scoring="accuracy", cv=2)) < new_patch_tree_score
 
 
-@pytest.mark.parametrize(
-    "TREE",
-    [ObliqueDecisionTreeClassifier, UnsupervisedDecisionTree, UnsupervisedObliqueDecisionTree],
-)
-def test_tree_deserialization_from_read_only_buffer(tmpdir, TREE):
-    """Check that Trees can be deserialized with read only buffers.
-
-    Non-regression test for gh-25584.
-    """
-    pickle_path = str(tmpdir.join("clf.joblib"))
-    clf = TREE(random_state=0)
-
-    if is_classifier(TREE):
-        clf.fit(X_small, y_small)
-    else:
-        clf.fit(X_small)
-
-    joblib.dump(clf, pickle_path)
-    loaded_clf = joblib.load(pickle_path, mmap_mode="r")
-
-    assert_tree_equal(
-        loaded_clf.tree_,
-        clf.tree_,
-        "The trees of the original and loaded classifiers are not equal.",
-    )
-
-
 def test_patch_oblique_tree_feature_weights():
     """Test patch oblique tree when feature weights are passed in."""
     X, y = digits.data, digits.target
@@ -521,11 +323,6 @@ def test_patch_oblique_tree_feature_weights():
             feature_weight=np.ones((X.shape[0], 2)),
         )
         clf.fit(X, y)
-
-
-def test_patch_tree_higher_dims():
-    """Test patch oblique tree when patch and data dimensions are higher."""
-    pass
 
 
 @pytest.mark.parametrize("Tree", REG_TREES.values())
@@ -628,21 +425,3 @@ def test_balance_property(criterion, Tree):
     reg = Tree(criterion=criterion)
     reg.fit(X, y)
     assert np.sum(reg.predict(X)) == pytest.approx(np.sum(y))
-
-
-@pytest.mark.parametrize("tree", ALL_TREES)
-def test_similarity_matrix(tree):
-    n_samples = 200
-    n_classes = 2
-    n_features = 5
-
-    X, y = make_blobs(
-        n_samples=n_samples, centers=n_classes, n_features=n_features, random_state=12345
-    )
-
-    clf = tree(random_state=12345)
-    clf.fit(X, y)
-    sim_mat = clf.compute_similarity_matrix(X)
-
-    assert np.allclose(sim_mat, sim_mat.T)
-    assert np.all((sim_mat.diagonal() == 1))

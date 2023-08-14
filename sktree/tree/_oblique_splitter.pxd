@@ -15,11 +15,11 @@ from libcpp.vector cimport vector
 
 from .._lib.sklearn.tree._criterion cimport Criterion
 from .._lib.sklearn.tree._splitter cimport SplitRecord, Splitter
-from .._lib.sklearn.tree._tree cimport DOUBLE_t  # Type of y, sample_weight
-from .._lib.sklearn.tree._tree cimport DTYPE_t  # Type of X
-from .._lib.sklearn.tree._tree cimport INT32_t  # Signed 32 bit integer
-from .._lib.sklearn.tree._tree cimport SIZE_t  # Type for indices and counters
-from .._lib.sklearn.tree._tree cimport UINT32_t  # Unsigned 32 bit integer
+from .._lib.sklearn.tree._utils cimport DOUBLE_t  # Type of y, sample_weight
+from .._lib.sklearn.tree._utils cimport DTYPE_t  # Type of X
+from .._lib.sklearn.tree._utils cimport INT32_t  # Signed 32 bit integer
+from .._lib.sklearn.tree._utils cimport SIZE_t  # Type for indices and counters
+from .._lib.sklearn.tree._utils cimport UINT32_t  # Unsigned 32 bit integer
 from ._sklearn_splitter cimport sort
 
 
@@ -83,7 +83,9 @@ cdef class BaseObliqueSplitter(Splitter):
         self,
         double impurity,   # Impurity of the node
         SplitRecord* split,
-        SIZE_t* n_constant_features
+        SIZE_t* n_constant_features,
+        double lower_bound,
+        double upper_bound,
     ) except -1 nogil
 
 
@@ -103,4 +105,4 @@ cdef class ObliqueSplitter(BaseObliqueSplitter):
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
         vector[vector[SIZE_t]]& proj_mat_indices
-    ) nogil
+    ) noexcept nogil

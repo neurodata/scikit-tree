@@ -87,7 +87,7 @@ cdef class UnsupervisedObliqueTree(UnsupervisedTree):
         weighted_n_node_samples[i] holds the weighted number of training samples
         reaching node i.
     """
-    def __cinit__(self, int n_features):
+    def __cinit__(self, int n_features, ):
         """Constructor."""
         # Input/Output layout
         self.n_features = n_features
@@ -102,6 +102,12 @@ cdef class UnsupervisedObliqueTree(UnsupervisedTree):
 
         self.proj_vec_weights = vector[vector[DTYPE_t]](self.capacity)
         self.proj_vec_indices = vector[vector[SIZE_t]](self.capacity)
+
+        # cdef SIZE_t k
+        # self.n_categories = NULL
+        # safe_realloc(&self.n_categories, n_features)
+        # for k in range(n_features):
+        #     self.n_categories[k] = n_categories[k]
 
     def __reduce__(self):
         """Reduce re-implementation, for pickling."""
@@ -209,14 +215,13 @@ cdef class UnsupervisedObliqueTree(UnsupervisedTree):
         self.capacity = capacity
         return 0
 
-    cdef int _set_split_node(self, SplitRecord* split_node, Node *node) except -1 nogil:
+    cdef inline int _set_split_node(self, SplitRecord* split_node, Node *node, SIZE_t node_id) except -1 nogil:
         """Set node data.
         """
         # Cython type cast split record into its inherited split record
         # For reference, see:
         # https://www.codementor.io/@arpitbhayani/powering-inheritance-in-c-using-structure-composition-176sygr724
         cdef ObliqueSplitRecord* oblique_split_node = <ObliqueSplitRecord*>(split_node)
-        cdef SIZE_t node_id = self.node_count
 
         node.feature = deref(oblique_split_node).feature
         node.threshold = deref(oblique_split_node).threshold

@@ -111,7 +111,7 @@ vcs = "git"
 files = ["sktree/__init__.py"]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.12"
+python = ">=3.9,<3.12"
 numpy = "^1.23.0"
 scipy = "^1.9.0"
 scikit-learn = "^1.2.2"
@@ -166,14 +166,14 @@ _cythonlint = 'cython-lint sktree/ --exclude "sktree/_lib/*"'
 _black_check = 'black --check sktree examples'
 _isort_check = 'isort --check .'
 _pydocstyle = 'pydocstyle ./sktree'
-_codespell = 'codespell sktree/ doc/ examples/ --ignore-words=.codespellignore --skip "**/_build/*,**/_lib/*"'
+_codespell = 'codespell sktree/ doc/ examples/ --ignore-words=.codespellignore --skip "**/_build/*,**/_lib/*,doc/_build/*,doc/auto_examples/*,doc/tutorials/*"'
 _changelog = 'semversioner changelog > CHANGELOG.md'
 _apply_version = 'semversioner release'
 
 type_check = 'mypy -p sktree --config-file pyproject.toml'
 unit_test = 'pytest ./sktree --cov=sktree --cov-report=xml --cov-config=pyproject.toml'
-build_docs = 'make -C docs/ clean html'
-build_docs_noplot = 'make -C docs/ clean html-noplot'
+build_docs = 'make -C doc/ clean html'
+build_docs_noplot = 'make -C doc/ clean html-noplot'
 clean = { shell = 'rm -rf builddir; rm -rf clean; rm -rf build; rm -rf _build; rm -rf dist;' }
 
 [[tool.poe.tasks.lint]]

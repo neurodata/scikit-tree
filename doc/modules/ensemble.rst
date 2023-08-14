@@ -14,7 +14,7 @@ sometimes at the cost of a slight increase in bias, oblique random forests aim t
 They are motivated to construct even more diverse trees, thereby improving model generalization.
 In practice the variance reduction is often significant hence yielding an overall better model.
 
-In contrast to the original publication [B2001]_, the scikit-learn
+In contrast to the original publication :footcite:`breiman2001random`, the scikit-learn
 implementation allows the user to control the number of features to combine in computing
 candidate splits. This is done via the ``feature_combinations`` parameter. For
 more information and intuition, see
@@ -27,10 +27,7 @@ more information and intuition, see
 
 .. topic:: References
 
- .. [B2001] Breiman, L. "Random Forests", Machine Learning, 45(1), 5-32, 2001.
-
- .. [G2006] Geurts, P. and Ernst., D. and Wehenkel, L. "Extremely randomized
-   trees", Machine Learning, 63(1), 3-42, 2006.
+ .. footbibliography::
 
 .. _oblique_forest_feature_importance:
 
@@ -52,8 +49,8 @@ By **averaging** the estimates of predictive ability over several randomized
 trees one can **reduce the variance** of such an estimate and use it
 for feature selection. This is known as the mean decrease in impurity, or MDI.
 Refer to [L2014]_ for more information on MDI and feature importance
-evaluation with Random Forests. We implement the approach taken in [Li2023]_
-and [Tomita2020]_.
+evaluation with Random Forests. We implement the approach taken in :footcite:`Li2023manifold`
+and :footcite:`TomitaSPORF2020`.
 
 .. warning::
 
@@ -76,14 +73,9 @@ to the prediction function.
 
 .. topic:: References
 
+ .. footbibliography::
+
  .. [L2014] Louppe, G. :arxiv:`"Understanding Random Forests: From Theory to
     Practice" <1407.7502>`,
     PhD Thesis, U. of Liege, 2014.
 
- .. [Li2023] Li, Adam, et al. :doi:`"Manifold Oblique Random Forests: Towards
-    Closing the Gap on Convolutional Deep Networks" <10.1137/21M1449117>`,
-    SIAM Journal on Mathematics of Data Science, 5(1), 77-96, 2023.
-
- .. [Tomita2020] Tomita, Tyler M., et al. "Sparse Projection Oblique
-    Randomer Forests", The Journal of Machine Learning Research, 21(104),
-    1-39, 2020.

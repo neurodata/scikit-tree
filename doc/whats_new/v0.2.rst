@@ -25,7 +25,9 @@ Version 0.2
 
 Changelog
 ---------
-- 
+- |Feature| Add a variety of different mutual information estimators based on decision trees, by `Adam Li`_  (:pr:`94`)
+- |Efficiency| Upgraded build process to rely on Cython 3.0+, by `Adam Li`_  (:pr:`94`)
+
 
 Code and Documentation Contributors
 -----------------------------------

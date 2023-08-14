@@ -18,8 +18,13 @@ sys.path.append(
 )
 sys.path.insert(0, os.path.abspath("sphinxext"))
 import sktree
+from sktree._lib.sklearn.ensemble._forest import ExtraTreesClassifier  # noqa
+from sktree._lib.sklearn.ensemble._forest import ExtraTreesRegressor  # noqa
+from sktree._lib.sklearn.ensemble._forest import RandomForestClassifier  # noqa
+from sktree._lib.sklearn.ensemble._forest import RandomForestRegressor  # noqa
 
 sys.path.append(os.path.abspath(os.path.join(curdir, "..", "sktree")))
+sys.path.append(os.path.abspath(os.path.join(curdir, "..", "sktree/_lib")))
 
 # -- project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -45,7 +50,7 @@ gh_url = "https://github.com/neurodata/scikit-tree"
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = "5.0"
+needs_sphinx = "6.0"
 
 # The document name of the “root” document, that is, the document that contains
 # the root toctree directive.
@@ -166,6 +171,7 @@ numpydoc_xref_aliases = {
     "UnsupervisedObliqueRandomForest": "sktree.ensemble.UnsupervisedObliqueRandomForest",
     "DecisionTreeClassifier": "sklearn.tree.DecisionTreeClassifier",
     "DecisionTreeRegressor": "sklearn.tree.DecisionTreeRegressor",
+    "ExtraTreeRegressor": "sklearn.tree.ExtraTreeRegressor",
     "pipeline.Pipeline": "sklearn.pipeline.Pipeline",
     # "sklearn_fork.inspection.permutation_importance": "sklearn.inspection.permutation_importance",
 }

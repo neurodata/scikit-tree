@@ -4,11 +4,11 @@ cimport numpy as cnp
 from libcpp.vector cimport vector
 
 from ..._lib.sklearn.tree._splitter cimport SplitRecord
-from ..._lib.sklearn.tree._tree cimport DOUBLE_t  # Type of y, sample_weight
-from ..._lib.sklearn.tree._tree cimport DTYPE_t  # Type of X
-from ..._lib.sklearn.tree._tree cimport INT32_t  # Signed 32 bit integer
-from ..._lib.sklearn.tree._tree cimport SIZE_t  # Type for indices and counters
-from ..._lib.sklearn.tree._tree cimport UINT32_t  # Unsigned 32 bit integer
+from ..._lib.sklearn.tree._utils cimport DOUBLE_t  # Type of y, sample_weight
+from ..._lib.sklearn.tree._utils cimport DTYPE_t  # Type of X
+from ..._lib.sklearn.tree._utils cimport INT32_t  # Signed 32 bit integer
+from ..._lib.sklearn.tree._utils cimport SIZE_t  # Type for indices and counters
+from ..._lib.sklearn.tree._utils cimport UINT32_t  # Unsigned 32 bit integer
 from ._unsup_splitter cimport UnsupervisedSplitter
 
 
@@ -47,18 +47,24 @@ cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
     # All oblique splitters (i.e. non-axis aligned splitters) require a
     # function to sample a projection matrix that is applied to the feature matrix
     # to quickly obtain the sampled projections for candidate splits.
-    cdef void sample_proj_mat(self,
-                              vector[vector[DTYPE_t]]& proj_mat_weights,
-                              vector[vector[SIZE_t]]& proj_mat_indices) nogil
+    cdef void sample_proj_mat(
+        self,
+        vector[vector[DTYPE_t]]& proj_mat_weights,
+        vector[vector[SIZE_t]]& proj_mat_indices
+    ) noexcept nogil
 
     # Redefined here since the new logic requires calling sample_proj_mat
     cdef int node_reset(self, SIZE_t start, SIZE_t end,
                         double* weighted_n_node_samples) except -1 nogil
 
-    cdef int node_split(self,
-                        double impurity,   # Impurity of the node
-                        SplitRecord* split,
-                        SIZE_t* n_constant_features) except -1 nogil
+    cdef int node_split(
+        self,
+        double impurity,   # Impurity of the node
+        SplitRecord* split,
+        SIZE_t* n_constant_features,
+        double lower_bound,
+        double upper_bound,
+    ) except -1 nogil
     cdef int init(
         self,
         const DTYPE_t[:, :] X,

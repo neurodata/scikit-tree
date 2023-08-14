@@ -97,12 +97,16 @@ def test_best_patch_splitter_contiguous():
     boundary = None
     feature_weight = None
 
+    # monotonic constraints are not supported for oblique splits
+    monotonic_cst = None
+
     splitter = BestPatchSplitterTester(
         criterion,
         max_features,
         min_samples_leaf,
         min_weight_leaf,
         random_state,
+        monotonic_cst,
         min_patch_dims,
         max_patch_dims,
         dim_contiguous,
