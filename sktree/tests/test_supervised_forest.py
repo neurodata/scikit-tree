@@ -187,10 +187,10 @@ def _trunk(n, p=10, random_state=None):
 )
 def test_sklearn_compatible_estimator(estimator, check):
     # TODO: remove when we can replicate the CI error...
-    if isinstance(
-        estimator, (ObliqueRandomForestClassifier, PatchObliqueRandomForestClassifier)
-    ) and check.func.__name__ in ["check_fit_score_takes_y"]:
-        pytest.skip()
+    # if isinstance(
+    #     estimator, (ObliqueRandomForestClassifier, PatchObliqueRandomForestClassifier)
+    # ) and check.func.__name__ in ["check_fit_score_takes_y"]:
+    #     pytest.skip()
     check(estimator)
 
 

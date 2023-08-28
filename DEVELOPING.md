@@ -77,3 +77,10 @@ Verify that installations work as expected on your machine.
     twine upload dist/*
 
 4. Update version number on ``meson.build`` and ``_version.py`` to the relevant version.
+
+
+# Submodule
+
+To update the submodule's branch for development purposes, one can run:
+
+    git submodule set-branch -b <branch_name> sktree/_lib/sklearn

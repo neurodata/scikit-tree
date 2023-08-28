@@ -101,7 +101,8 @@ You can also do the same thing using Meson/Ninja itself. Run the following to bu
     python -c "from sktree import tree"
     python -c "import sklearn; print(sklearn.__version__);"
 
-Alternatively, you can use editable installs
+Alternatively, you can use editable installs. This will allow one to run the package without using
+`spin`.
 
     pip install --no-build-isolation --editable .
 
