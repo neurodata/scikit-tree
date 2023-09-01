@@ -54,7 +54,7 @@ def coverage(ctx):
 def setup_submodule(forcesubmodule=False):
     """Build scikit-tree using submodules.
 
-    git submodule set-branch -b submodulev2 sktree/_lib/sklearn
+    git submodule set-branch -b submodulev3 sktree/_lib/sklearn_fork
 
     git submodule update --recursive --remote
 

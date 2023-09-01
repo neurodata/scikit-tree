@@ -192,7 +192,7 @@ def test_sklearn_compatible_estimator(estimator, check):
     check(estimator)
 
 
-def test_oblique_tree_sampling():
+def test_oblique_tree_sampling_iris():
     """Test Oblique Decision Trees.
 
     Oblique trees can sample more candidate splits then
@@ -213,9 +213,9 @@ def test_oblique_tree_sampling():
     tree_rc = ObliqueDecisionTreeClassifier(random_state=0, max_features=n_features * 2)
     ri_cv_scores = cross_val_score(tree_ri, X, y, scoring="accuracy", cv=10, error_score="raise")
     rc_cv_scores = cross_val_score(tree_rc, X, y, scoring="accuracy", cv=10, error_score="raise")
-    assert rc_cv_scores.mean() > ri_cv_scores.mean()
-    assert rc_cv_scores.std() < ri_cv_scores.std()
-    assert rc_cv_scores.mean() > 0.91
+    assert rc_cv_scores.mean() > ri_cv_scores.mean(), f"{rc_cv_scores.mean()} <= {ri_cv_scores.mean()}"
+    assert rc_cv_scores.std() < ri_cv_scores.std(), f"{rc_cv_scores.std()} >= {ri_cv_scores.std()}"
+    assert rc_cv_scores.mean() > 0.91, f"{rc_cv_scores.mean()} <= 0.91"
 
 
 def test_oblique_trees_feature_combinations_less_than_n_features():
@@ -441,7 +441,7 @@ def test_diabetes_underfit(name, Tree, criterion, max_depth, metric, max_loss):
     reg = Tree(criterion=criterion, max_depth=max_depth, max_features=6, random_state=0)
     reg.fit(diabetes.data, diabetes.target)
     loss = metric(diabetes.target, reg.predict(diabetes.data))
-    assert 0 < loss < max_loss
+    assert 0 < loss < max_loss, f"Failed with {name}, criterion = {criterion} and loss = {loss} vs {max_loss}"
 
 
 def test_numerical_stability():
@@ -479,4 +479,6 @@ def test_balance_property(criterion, Tree):
     X, y = diabetes.data, diabetes.target
     reg = Tree(criterion=criterion)
     reg.fit(X, y)
-    assert np.sum(reg.predict(X)) == pytest.approx(np.sum(y))
+    y_pred_sum = np.sum(reg.predict(X))
+    assert (y_pred_sum == pytest.approx(np.sum(y)),
+        f"Failed with {criterion} and {Tree}: {y_pred_sum} != {np.sum(y)}")

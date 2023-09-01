@@ -1,4 +1,4 @@
-[submodule "sktree/_lib/sklearn"]
+[submodule "sktree/_lib/sklearn_fork"]
 	path = sktree/_lib/sklearn_fork
 	url = https://github.com/neurodata/scikit-learn
 	branch = submodulev3
