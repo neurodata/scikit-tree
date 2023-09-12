@@ -66,6 +66,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenblas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev libsuitesparse-dev ccache libmpc-dev
+          sudo apt-get install -y gcc g++
+
+      - name: show-gcc
+        run: |
+          gcc --version
 
       - name: Install Python packages
         run: |

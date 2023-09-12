@@ -31,6 +31,7 @@ Changelog
 - |Efficiency| Around 1.5-2x speed improvement for unsupervised forests, by `Adam Li`_  (:pr:`114`)
 - |API| Allow ``sqrt`` and ``log2`` keywords to be used for ``min_samples_split`` parameter in unsupervised forests, by `Adam Li`_  (:pr:`114`)
 - |Feature| Implement extended isolation forest, by `Adam Li`_ (:pr:`101`)
+- |Feature| Track constant columns within the tree to prevent splitting or evaluating columns in oblique splits that are constant, by `Adam Li`_  (:pr:`121`)
 
 Code and Documentation Contributors
 -----------------------------------

@@ -145,3 +145,14 @@ cdef SIZE_t ravel_multi_index_cython(SIZE_t[:] coords, const SIZE_t[:] shape) no
             flat_index *= shape[i + 1]
 
     return flat_index
+
+cdef SIZE_t vector_hash(
+    const vector[SIZE_t]& v
+) noexcept nogil:
+    """Hash a vector of size_t."""
+    cdef SIZE_t seed = v.size()
+    cdef SIZE_t i, hash_val
+    for i in range(v.size()):
+        seed = seed ^ (v[i] + <SIZE_t>0x9e3779b9 + (seed << 6) + (seed >> 2))
+    hash_val = seed
+    return hash_val

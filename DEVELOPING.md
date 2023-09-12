@@ -77,3 +77,15 @@ Verify that installations work as expected on your machine.
     twine upload dist/*
 
 4. Update version number on ``meson.build`` and ``_version.py`` to the relevant version.
+
+# Comparing branches using ASV benchmarks
+
+We use asv to compare performance between the current branch and main branch. For
+example, one can run:
+
+    asv continuous --verbose --split --bench ObliqueRandomForest origin/main constantsv2
+
+# Extending Cython API
+
+Due to the current state of scikit-learn's internal Cython code for trees, we have to instead leverage a fork of scikit-learn at https://github.com/neurodata/scikit-learn when
+extending the decision tree model API of scikit-learn. Specifically, we extend the Python and Cython API of the tree submodule in scikit-learn in our submodule, so we can introduce the tree models housed in this package. Thus these extend the functionality of decision-tree based models in a way that is not possible yet in scikit-learn itself. As one example, we introduce an abstract API to allow users to implement their own oblique splits. Our plan in the future is to benchmark these functionalities and introduce them upstream to scikit-learn where applicable and inclusion criterion are met.

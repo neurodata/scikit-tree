@@ -29,7 +29,6 @@ py3.install_sources(
   subdir: 'sktree/tree'   # Folder relative to site-packages to install to
 )
 
-# TODO: comment in if we include tests
 subdir('tests')
 subdir('unsupervised')
 subdir('manifold')

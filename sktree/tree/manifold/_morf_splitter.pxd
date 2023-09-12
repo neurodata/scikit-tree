@@ -80,7 +80,8 @@ cdef class PatchSplitter(BaseObliqueSplitter):
     cdef void sample_proj_mat(
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
+        vector[vector[SIZE_t]]& proj_mat_indices,
+        SIZE_t n_known_constants,
     ) noexcept nogil
 
 
@@ -100,5 +101,6 @@ cdef class GaussianKernelSplitter(PatchSplitter):
     cdef void sample_proj_mat(
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
+        vector[vector[SIZE_t]]& proj_mat_indices,
+        SIZE_t n_known_constants,
     ) noexcept nogil

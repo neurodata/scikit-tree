@@ -82,7 +82,8 @@ cdef class PatchSplitter(BaseObliqueSplitter):
     cdef void sample_proj_mat(
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
+        vector[vector[SIZE_t]]& proj_mat_indices,
+        SIZE_t n_known_constants,
     ) noexcept nogil:
         """ Sample the projection vector.
 
@@ -271,7 +272,8 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
     cdef void sample_proj_mat(
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
+        vector[vector[SIZE_t]]& proj_mat_indices,
+        SIZE_t n_known_constants,
     ) noexcept nogil:
         """Sample projection matrix using a contiguous patch.
 
@@ -410,7 +412,8 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
         const SIZE_t[:] samples,
         DTYPE_t[:] feature_values,
         vector[DTYPE_t]* proj_vec_weights,  # weights of the vector (max_features,)
-        vector[SIZE_t]* proj_vec_indices    # indices of the features (max_features,)
+        vector[SIZE_t]* proj_vec_indices,    # indices of the features (max_features,)
+        SIZE_t* n_known_constants
     ) noexcept nogil:
         """Compute the feature values for the samples[start:end] range.
 
@@ -450,7 +453,7 @@ cdef class BestPatchSplitterTester(BestPatchSplitter):
         patch_dims = np.array(self.patch_dims_buff, dtype=np.intp)
         return top_left_patch_seed, patch_size, patch_dims
 
-    cpdef sample_projection_vector(
+    cpdef sample_projection_vector_py(
         self,
         SIZE_t proj_i,
         SIZE_t patch_size,
@@ -492,7 +495,7 @@ cdef class BestPatchSplitterTester(BestPatchSplitter):
         cdef SIZE_t i, j
 
         # sample projection matrix in C/C++
-        self.sample_proj_mat(proj_mat_weights, proj_mat_indices)
+        self.sample_proj_mat(proj_mat_weights, proj_mat_indices, 0)
 
         # convert the projection matrix to something that can be used in Python
         proj_vecs = np.zeros((self.max_features, self.n_features), dtype=np.float64)

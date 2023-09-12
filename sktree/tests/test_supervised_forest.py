@@ -193,6 +193,7 @@ def _trunk(n, p=10, random_state=None):
 )
 def test_sklearn_compatible_estimator(estimator, check):
     # TODO: remove when we can replicate the CI error...
+    # this seems to be due to a compiler issue since it is not replicable on MacOSx
     if isinstance(
         estimator,
         (
@@ -207,9 +208,9 @@ def test_sklearn_compatible_estimator(estimator, check):
 
 def test_oblique_forest_sparse_parity():
     # Sparse parity dataset
-    n = 1000
+    n = 500
     X, y = _sparse_parity(n, random_state=0)
-    n_test = 0.1
+    n_test = 0.2
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -217,7 +218,7 @@ def test_oblique_forest_sparse_parity():
         random_state=0,
     )
 
-    rc_clf = ObliqueRandomForestClassifier(max_features=None, random_state=0)
+    rc_clf = ObliqueRandomForestClassifier(random_state=0)
     rc_clf.fit(X_train, y_train)
     y_hat = rc_clf.predict(X_test)
     rc_accuracy = accuracy_score(y_test, y_hat)
@@ -227,9 +228,11 @@ def test_oblique_forest_sparse_parity():
     y_hat = ri_clf.predict(X_test)
     ri_accuracy = accuracy_score(y_test, y_hat)
 
-    assert ri_accuracy < rc_accuracy
-    assert ri_accuracy > 0.45
-    assert rc_accuracy > 0.5
+    assert (
+        ri_accuracy < rc_accuracy
+    ), f"Oblique forest: {rc_accuracy} < Axis-aligned forest: {ri_accuracy}"
+    assert ri_accuracy > 0.45, f"Axis-aligned forest: {ri_accuracy} < 0.45"
+    assert rc_accuracy > 0.5, f"Oblique forest: {rc_accuracy} < 0.5"
 
 
 def test_oblique_forest_orthant():
@@ -258,7 +261,9 @@ def test_oblique_forest_orthant():
     y_hat = ri_clf.predict(X_test)
     ri_accuracy = accuracy_score(y_test, y_hat)
 
-    assert rc_accuracy >= ri_accuracy
+    assert (
+        rc_accuracy >= ri_accuracy
+    ), f"Oblique forest: {rc_accuracy} < Axis-aligned forest: {ri_accuracy}"
     assert ri_accuracy > 0.84
     assert rc_accuracy > 0.85
 

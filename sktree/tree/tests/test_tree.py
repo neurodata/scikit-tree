@@ -223,16 +223,11 @@ def test_pickle_splitters():
     ]
 )
 def test_sklearn_compatible_estimator(estimator, check):
-    # TODO: remove when we can replicate the CI error...
-    if isinstance(
-        estimator, (PatchObliqueDecisionTreeClassifier, ExtraObliqueDecisionTreeClassifier)
-    ) and check.func.__name__ in ["check_fit_score_takes_y"]:
-        pytest.skip()
     check(estimator)
 
 
 @pytest.mark.parametrize("Tree", CLF_TREES.values())
-def test_oblique_tree_sampling(Tree, random_state=0):
+def test_oblique_tree_sampling_iris(Tree, random_state=0):
     """Test Oblique Decision Trees.
 
     Oblique trees can sample more candidate splits than
@@ -253,9 +248,11 @@ def test_oblique_tree_sampling(Tree, random_state=0):
     tree_rc = Tree(random_state=random_state, max_features=n_features * 2)
     ri_cv_scores = cross_val_score(tree_ri, X, y, scoring="accuracy", cv=10, error_score="raise")
     rc_cv_scores = cross_val_score(tree_rc, X, y, scoring="accuracy", cv=10, error_score="raise")
-    assert rc_cv_scores.mean() > ri_cv_scores.mean()
-    assert rc_cv_scores.std() < ri_cv_scores.std()
-    assert rc_cv_scores.mean() > 0.91
+    assert (
+        rc_cv_scores.mean() > ri_cv_scores.mean()
+    ), f"{rc_cv_scores.mean()} <= {ri_cv_scores.mean()}"
+    assert rc_cv_scores.std() < ri_cv_scores.std(), f"{rc_cv_scores.std()} >= {ri_cv_scores.std()}"
+    assert rc_cv_scores.mean() > 0.91, f"{rc_cv_scores.mean()} <= 0.91"
 
 
 @pytest.mark.parametrize("Tree", OBLIQUE_TREES.values())
@@ -483,7 +480,9 @@ def test_diabetes_underfit(name, Tree, criterion, max_depth, metric, max_loss):
     reg = Tree(criterion=criterion, max_depth=max_depth, max_features=10, random_state=1234)
     reg.fit(diabetes.data, diabetes.target)
     loss = metric(diabetes.target, reg.predict(diabetes.data))
-    assert 0.0 <= loss < max_loss
+    assert (
+        0 <= loss < max_loss
+    ), f"Failed with {name}, criterion = {criterion} and loss = {loss} vs {max_loss}"
 
 
 def test_numerical_stability():
@@ -521,4 +520,7 @@ def test_balance_property(criterion, Tree):
     X, y = diabetes.data, diabetes.target
     reg = Tree(criterion=criterion)
     reg.fit(X, y)
-    assert np.sum(reg.predict(X)) == pytest.approx(np.sum(y))
+    y_pred_sum = np.sum(reg.predict(X))
+    assert y_pred_sum == pytest.approx(
+        np.sum(y)
+    ), f"Failed with {criterion} and {Tree}: {y_pred_sum} != {np.sum(y)}"

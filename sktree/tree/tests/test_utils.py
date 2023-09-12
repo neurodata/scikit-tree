@@ -122,7 +122,7 @@ def test_best_patch_splitter_contiguous():
         top_left_patch_seed, patch_size, patch_dims = splitter.sample_top_left_seed_cpdef()
 
         # sample a bunch of projection vectors
-        proj_vec = splitter.sample_projection_vector(
+        proj_vec = splitter.sample_projection_vector_py(
             proj_i, patch_size, top_left_patch_seed, patch_dims
         )
         # print(proj_vec.reshape(data_dims))

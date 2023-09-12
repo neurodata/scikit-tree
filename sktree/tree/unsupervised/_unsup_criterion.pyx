@@ -288,7 +288,7 @@ cdef class TwoMeans(UnsupervisedCriterion):
     to compute a weighted sample mean and weighted sample variance. The weighted
     sample variance has two approaches to compute an unbiased estimate. The first
     is using "frequencies" and the second is using "reliability" weights. Currently,
-    we have impmlemented the frequencies approach.
+    we have implemented the frequencies approach.
 
     # TODO: implement reliability weighting
 

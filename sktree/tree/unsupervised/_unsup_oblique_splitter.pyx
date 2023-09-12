@@ -155,7 +155,8 @@ cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
 
     cdef void sample_proj_mat(self,
                               vector[vector[DTYPE_t]]& proj_mat_weights,
-                              vector[vector[SIZE_t]]& proj_mat_indices) noexcept nogil:
+                              vector[vector[SIZE_t]]& proj_mat_indices,
+                              SIZE_t n_known_constants) noexcept nogil:
         """ Sample the projection vector.
 
         This is a placeholder method.
@@ -166,14 +167,15 @@ cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
         """Get size of a pointer to record for ObliqueSplitter."""
         return sizeof(ObliqueSplitRecord)
 
-    cdef inline void compute_features_over_samples(
+    cdef void compute_features_over_samples(
         self,
         SIZE_t start,
         SIZE_t end,
         const SIZE_t[:] samples,
         DTYPE_t[:] feature_values,
         vector[DTYPE_t]* proj_vec_weights,  # weights of the vector (max_features,)
-        vector[SIZE_t]* proj_vec_indices    # indices of the features (max_features,)
+        vector[SIZE_t]* proj_vec_indices,   # indices of the features (max_features,)
+        SIZE_t* n_known_constants
     ) noexcept nogil:
         """Compute the feature values for the samples[start:end] range.
 
@@ -196,23 +198,58 @@ cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
                     feature_values[idx] = 0.0
                 feature_values[idx] += self.X[samples[idx], col_idx] * col_weight
 
+                # keep track of the min/max of X[samples[:], col_idx]
+                if (self.X[samples[idx], col_idx] < self.min_val_map[col_idx] or
+                        self.min_val_map.find(col_idx) == self.min_val_map.end()):
+                    self.min_val_map[col_idx] = self.X[samples[idx], col_idx]
+                if (self.X[samples[idx], col_idx] > self.max_val_map[col_idx] or
+                        self.max_val_map.find(col_idx) == self.max_val_map.end()):
+                    self.max_val_map[col_idx] = self.X[samples[idx], col_idx]
+
+            if self.max_val_map[col_idx] <= self.min_val_map[col_idx] + FEATURE_THRESHOLD:
+                self.constant_features[col_idx] = 1
+
+                # move features pointer around to make sure we keep track of the constant features
+                self.features[col_idx], self.features[n_known_constants[0]] = \
+                    self.features[n_known_constants[0]], self.features[col_idx]
+
+                # increment the number of known constants
+                n_known_constants[0] += 1
 
 cdef class BestObliqueUnsupervisedSplitter(UnsupervisedObliqueSplitter):
     # NOTE: vectors are passed by value, so & is needed to pass by reference
     cdef void sample_proj_mat(
         self,
         vector[vector[DTYPE_t]]& proj_mat_weights,
-        vector[vector[SIZE_t]]& proj_mat_indices
+        vector[vector[SIZE_t]]& proj_mat_indices,
+        SIZE_t n_known_constants,
     ) noexcept nogil:
-        """
-        Sparse Oblique Projection matrix.
+        """Sample oblique projection matrix.
+
         Randomly sample features to put in randomly sampled projection vectors
-        weight = 1 or -1 with probability 0.5
+        weight = 1 or -1 with probability 0.5.
+
+        Note: vectors are passed by value, so & is needed to pass by reference.
+
+        Parameters
+        ----------
+        proj_mat_weights : vector of vectors reference
+            The memory address of projection matrix non-zero weights.
+        proj_mat_indices : vector of vectors reference
+            The memory address of projection matrix non-zero indices.
+
+        Notes
+        -----
+        Note that grid_size must be larger than or equal to n_non_zeros because
+        it is assumed ``feature_combinations`` is forced to be smaller than
+        ``n_features`` before instantiating an oblique splitter.
         """
+
         cdef SIZE_t n_features = self.n_features
         cdef SIZE_t n_non_zeros = self.n_non_zeros
         cdef UINT32_t* random_state = &self.rand_r_state
 
+        cdef SIZE_t col_idx
         cdef int i, feat_i, proj_i, rand_vec_index
         cdef DTYPE_t weight
 
@@ -234,12 +271,13 @@ cdef class BestObliqueUnsupervisedSplitter(UnsupervisedObliqueSplitter):
 
             # get the projection index and feature index
             proj_i = rand_vec_index // n_features
-            feat_i = rand_vec_index % n_features
+            feat_i = rand_vec_index % (n_features - n_known_constants)
+            col_idx = self.features[feat_i + n_known_constants]
 
             # sample a random weight
             weight = 1 if (rand_int(0, 2, random_state) == 1) else -1
 
-            proj_mat_indices[proj_i].push_back(feat_i)  # Store index of nonzero
+            proj_mat_indices[proj_i].push_back(col_idx)  # Store index of nonzero
             proj_mat_weights[proj_i].push_back(weight)  # Store weight of nonzero
 
     cdef int node_split(
@@ -263,6 +301,8 @@ cdef class BestObliqueUnsupervisedSplitter(UnsupervisedObliqueSplitter):
         cdef SIZE_t start = self.start
         cdef SIZE_t end = self.end
 
+        cdef SIZE_t n_known_constants = n_constant_features[0]
+
         # pointer array to store feature values to split on
         cdef DTYPE_t[::1]  feature_values = self.feature_values
         cdef SIZE_t max_features = self.max_features
@@ -283,7 +323,7 @@ cdef class BestObliqueUnsupervisedSplitter(UnsupervisedObliqueSplitter):
         _init_split(&best_split, end)
 
         # Sample the projection matrix
-        self.sample_proj_mat(self.proj_mat_weights, self.proj_mat_indices)
+        self.sample_proj_mat(self.proj_mat_weights, self.proj_mat_indices, n_known_constants)
 
         # For every vector in the projection matrix
         for feat_i in range(max_features):
@@ -305,7 +345,8 @@ cdef class BestObliqueUnsupervisedSplitter(UnsupervisedObliqueSplitter):
                 samples,
                 feature_values,
                 &self.proj_mat_weights[feat_i],
-                &self.proj_mat_indices[feat_i]
+                &self.proj_mat_indices[feat_i],
+                &n_known_constants
             )
 
             # Sort the samples

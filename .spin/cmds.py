@@ -7,6 +7,8 @@ import click
 from spin import util
 from spin.cmds import meson
 
+PROJECT_MODULE = "sktree"
+
 
 def get_git_revision_hash(submodule) -> str:
     return subprocess.check_output(["git", "rev-parse", f"@:{submodule}"]).decode("ascii").strip()
