@@ -452,7 +452,7 @@ cdef class BestPatchSplitterTester(BestPatchSplitter):
         patch_dims = np.array(self.patch_dims_buff, dtype=np.intp)
         return top_left_patch_seed, patch_size, patch_dims
 
-    cpdef sample_projection_vector(
+    cpdef sample_projection_vector_py(
         self,
         intp_t proj_i,
         intp_t patch_size,

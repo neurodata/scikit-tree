@@ -105,6 +105,7 @@ def setup_submodule(forcesubmodule=False):
         print(commit_fpath)
         with open(commit_fpath, "w") as f:
             f.write(current_hash)
+        print(commit, current_hash)
 
         util.run(
             [

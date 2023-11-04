@@ -12,7 +12,7 @@ Version 0.4
 
 Changelog
 ---------
-- 
+- |Feature| Implement forest-based MI and CMI estimators, by `Adam Li`_ (:pr:`110`)
 
 Code and Documentation Contributors
 -----------------------------------

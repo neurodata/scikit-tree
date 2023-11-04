@@ -126,7 +126,7 @@ cdef class UnsupervisedSplitter(BaseSplitter):
             self.feature_values,
             self.sample_weight,
             self.weighted_n_samples,
-            self.samples
+            self.samples,
         )
 
         # set sample pointers in criterion

@@ -216,7 +216,6 @@ cdef class UnsupervisedObliqueTree(UnsupervisedTree):
         # For reference, see:
         # https://www.codementor.io/@arpitbhayani/powering-inheritance-in-c-using-structure-composition-176sygr724
         cdef ObliqueSplitRecord* oblique_split_node = <ObliqueSplitRecord*>(split_node)
-        node_id = self.node_count
         node.feature = deref(oblique_split_node).feature
         node.threshold = deref(oblique_split_node).threshold
 

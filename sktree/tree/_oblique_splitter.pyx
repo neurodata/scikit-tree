@@ -112,6 +112,8 @@ cdef class BaseObliqueSplitter(Splitter):
         cdef intp_t col_idx
         cdef float32_t col_weight
 
+        # XXX: this should be able to be improved, if we can flip the order of the for-loops
+        # XXX: we can add a hashmap here to keep track of the min/max of each feature
         # Compute linear combination of features and then
         # sort samples according to the feature values.
         for jdx in range(0, proj_vec_indices.size()):
@@ -432,6 +434,7 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
         deref(oblique_split).impurity_left = best_split.impurity_left
         deref(oblique_split).impurity_right = best_split.impurity_right
         return 0
+
 
 cdef class RandomObliqueSplitter(ObliqueSplitter):
     def __reduce__(self):

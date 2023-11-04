@@ -7,6 +7,7 @@
 [![Latest PyPI release](https://img.shields.io/pypi/v/scikit-tree.svg)](https://pypi.org/project/scikit-tree/)
 [![DOI](https://zenodo.org/badge/491260497.svg)](https://zenodo.org/doi/10.5281/zenodo.8412279)
 
+
 scikit-tree
 ===========
 

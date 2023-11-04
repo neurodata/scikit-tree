@@ -2,6 +2,9 @@ python_sources = [
   '__init__.py',
   'mutual_info.py',
   'simulate.py',
+  'ksg.py',
+  'forest.py',
+  'monte_carlo.py',
   'sdf.py',
 ]
 

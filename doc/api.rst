@@ -181,3 +181,10 @@ for the entropy, MI and CMI of the Gaussian distributions.
    mi_gaussian
    cmi_gaussian
    entropy_gaussian
+
+
+.. currentmodule:: sktree.experimental.monte_carlo
+.. autosummary::
+   :toctree: generated/
+
+   conditional_resample

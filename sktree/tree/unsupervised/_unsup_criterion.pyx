@@ -8,6 +8,7 @@
 cimport numpy as cnp
 import numpy as np
 from libc.math cimport log
+from libcpp.unordered_map cimport unordered_map
 
 cnp.import_array()
 
@@ -506,3 +507,234 @@ cdef class FastBIC(TwoMeans):
         else:
             impurity_left[0] = -BIC_same_var_left
             impurity_right[0] = -BIC_same_var_right
+
+
+cdef class FasterBIC(UnsupervisedCriterion):
+    r"""Faster-BIC split criterion
+
+    This utilizes a trick from [2]_ to improve the computation for the variance.
+    Since we have an arbitrary segment $X_i, ..., X_j$ with $1 \le i \le j \le n_samples$,
+    we can compute the variance in O(1) time.
+
+    Reference:
+    [1] https://arxiv.org/pdf/2110.13883.pdf
+    [2] E. Terzi, Problems and algorithms for sequence segmen- tations. Helsingin yliopisto, 2006.
+    """
+    cdef unordered_map[SIZE_t, DTYPE_t] cumsum_of_squares_map
+    cdef unordered_map[SIZE_t, DTYPE_t] cumsum_map
+    cdef unordered_map[SIZE_t, DTYPE_t] cumsum_weights_map
+
+    cdef double bic_cluster(self, SIZE_t n_samples, double variance) noexcept nogil:
+        """Help compute the BIC from assigning to a specific cluster.
+
+        Parameters
+        ----------
+        n_samples : SIZE_t
+            The number of samples assigned cluster.
+        variance : double
+            The plug-in variance for assigning to specific cluster.
+
+        Notes
+        -----
+        Computes the following:
+
+        :math:`-2 * (n_i log(w_i) - n_i/2 log(2 \\pi \\sigma_i^2))
+
+        where :math:`n_i` is the number of samples assigned to cluster i,
+        :math:`w_i` is the probability of choosing cluster i at random (or also known
+        as the prior) and :math:`\\sigma_i^2` is the variance estimate for cluster i.
+
+        Note that :math:`\\sigma_i^2` in the Fast-BIC derivation may be the
+        variance of the cluster itself, or the estimated combined variance
+        from both clusters.
+        """
+        cdef SIZE_t n_node_samples = self.n_node_samples
+
+        # chances of choosing the cluster based on how many samples are hard-assigned to cluster
+        # i.e. the prior
+        # cast to double, so we do not round to integers
+        cdef double w_cluster = (n_samples + 0.0) / n_node_samples
+
+        # add to prevent taking log of 0 when there is a degenerate cluster (i.e. single sample, or no variance)
+        return -2. * (n_samples * log(w_cluster) + 0.5 * n_samples * log(2. * PI * variance + 1.e-7))
+
+    cdef double node_impurity(
+        self
+    ) noexcept nogil:
+        """Evaluate the impurity of the current node.
+
+        Evaluate the FastBIC criterion impurity as estimated maximum log likelihood.
+        This is the maximum likelihood given prior, mean, and variance at s number of samples
+        Namely, this is the maximum likelihood of Xf[sample_indices[start:end]].
+        The smaller the impurity the better.
+        """
+        cdef double variance
+        cdef double impurity
+        cdef SIZE_t n_node_samples = self.n_node_samples
+
+        # then compute the variance of the cluster
+        # see Section 5.2 in reference.
+        variance = self.fast_total_variance(self.weighted_n_node_samples, self.end)
+
+        # Compute the BIC of the current set of samples
+        # Note: we do not compute the BIC_diff_var and BIC_same_var because
+        # they are equivalent in the single cluster setting
+        impurity = self.bic_cluster(n_node_samples, variance)
+        return impurity
+
+    cdef inline DTYPE_t fast_total_variance(self, double weighted_n_node_samples, SIZE_t j) noexcept nogil:
+        """Computes variance in O(1).
+
+        Computes:
+
+        \\sigma_{i,j}^2 = \\frac{1}{j-i+1} ((css_j - css_{i-1}) - \\frac{1}{j-i+1} (cs_j - cs_{i-1})^2)
+        """
+        cdef double normalizer = 1. / weighted_n_node_samples
+        cdef SIZE_t s_idx = self.sample_indices[j]
+        return normalizer * \
+            (
+                (self.cumsum_of_squares_map[s_idx]) -
+                (normalizer * (self.cumsum_map[s_idx]) * (self.cumsum_map[s_idx]))
+            )
+
+    cdef inline DTYPE_t fast_variance(self, double weighted_n_node_samples, SIZE_t j, SIZE_t i) noexcept nogil:
+        """Computes variance in O(1).
+
+        Computes:
+
+        \\sigma_{i,j}^2 = \\frac{1}{j-i+1} ((css_j - css_{i-1}) - \\frac{1}{j-i+1} (cs_j - cs_{i-1})^2)
+        """
+        cdef double normalizer = 1. / weighted_n_node_samples
+        cdef SIZE_t sj_idx = self.sample_indices[j]
+        cdef SIZE_t si_idx = self.sample_indices[i - 1]
+
+        return normalizer * \
+            (
+                (self.cumsum_of_squares_map[sj_idx] - self.cumsum_of_squares_map[si_idx]) -
+                (normalizer * (self.cumsum_map[sj_idx] - self.cumsum_map[si_idx]) * (self.cumsum_map[sj_idx] - self.cumsum_map[si_idx]))
+            )
+
+    cdef void children_impurity(
+        self,
+        double* impurity_left,
+        double* impurity_right
+    ) noexcept nogil:
+        cdef SIZE_t pos = self.pos
+        cdef SIZE_t start = self.start
+        cdef SIZE_t end = self.end
+        cdef SIZE_t n_samples_left, n_samples_right
+
+        cdef double variance_left, variance_right, variance_comb
+        cdef double BIC_diff_var_left, BIC_diff_var_right
+        cdef double BIC_same_var_left, BIC_same_var_right
+        cdef double BIC_same_var, BIC_diff_var
+
+        # number of samples of left and right
+        n_samples_left = pos - start
+        n_samples_right = end - pos
+
+        # compute the variance of the node, left, and right child
+        variance_left = self.fast_total_variance(self.weighted_n_left, pos)
+        variance_right = self.fast_variance(self.weighted_n_right, end, pos)
+        variance_comb = self.fast_total_variance(self.weighted_n_node_samples, end)
+
+        # Compute the BIC using different variances for left and right
+        BIC_diff_var_left = self.bic_cluster(n_samples_left, variance_left)
+        BIC_diff_var_right = self.bic_cluster(n_samples_right, variance_right)
+
+        # Compute the BIC using different variances for left and right
+        BIC_same_var_left = self.bic_cluster(n_samples_left, variance_comb)
+        BIC_same_var_right = self.bic_cluster(n_samples_right, variance_comb)
+        BIC_same_var = BIC_same_var_left - BIC_same_var_right
+        BIC_diff_var = BIC_diff_var_left - BIC_diff_var_right
+
+        # choose the BIC formulation that gives us the smallest values
+        # (i.e. min of (BIC_diff, BIC_same) in the paper) and then
+        # assign the left and right child BIC values by reference
+        if BIC_diff_var < BIC_same_var:
+            impurity_left[0] = -BIC_diff_var_left
+            impurity_right[0] = -BIC_diff_var_right
+        else:
+            impurity_left[0] = -BIC_same_var_left
+            impurity_right[0] = -BIC_same_var_right
+
+    cdef void init_feature_vec(
+        self,
+    ) noexcept nogil:
+        """Compute sufficient statistics from the feature vector at this node.
+
+        This function iterates over the set of samples at this node and computes
+        the cumulative sum and cumulative sum-of-suqares, which enables O(1) computation
+        of the variance.
+
+        When calling `update` to compute the sum_left and sum_right. It will be fairly straightforward.
+        """
+        # also compute the sum total
+        self.sum_total = 0.0
+        self.weighted_n_node_samples = 0.0
+        cdef SIZE_t s_idx
+        cdef SIZE_t p_idx
+
+        cdef DOUBLE_t w = 1.0
+
+        cdef SIZE_t prev_s_idx
+        # = self.sample_indices[self.start] - 1
+        # self.cumsum_of_squares_map[self.sample_indices[self.start] - 1] = 0.0
+        # self.cumsum_map[self.sample_indices[self.start] - 1] = 0.0
+        # self.cumsum_weights_map[self.sample_indices[self.start] - 1] = 0.0
+
+        cdef unordered_map[SIZE_t, DTYPE_t] cumsum_map
+        cdef unordered_map[SIZE_t, DTYPE_t] cumsum_of_squares_map
+        cdef unordered_map[SIZE_t, DTYPE_t] cumsum_weights_map
+        self.cumsum_map = cumsum_map
+        self.cumsum_of_squares_map = cumsum_of_squares_map
+        self.cumsum_weights_map = cumsum_weights_map
+
+        for p_idx in range(self.start, self.end):
+            s_idx = self.sample_indices[p_idx]
+
+            # w is originally set to be 1.0, meaning that if no sample weights
+            # are given, the default weight of each sample is 1.0.
+            if self.sample_weight is not None:
+                w = self.sample_weight[s_idx]
+
+            self.sum_total += self.feature_values[s_idx] * w
+            self.weighted_n_node_samples += w
+
+            if p_idx != self.start:
+                self.cumsum_of_squares_map[s_idx] = self.cumsum_of_squares_map[prev_s_idx] + (self.feature_values[s_idx] * self.feature_values[s_idx] * w * w)
+                self.cumsum_map[s_idx] = self.cumsum_map[prev_s_idx] + (self.feature_values[s_idx] * w)
+                self.cumsum_weights_map[s_idx] = self.cumsum_weights_map[prev_s_idx] + w
+            else:
+                self.cumsum_of_squares_map[s_idx] = 0.0
+                self.cumsum_map[s_idx] = 0.0
+                self.cumsum_weights_map[s_idx] = 0.0
+            prev_s_idx = s_idx
+
+        # Reset to pos=start
+        self.reset()
+
+    cdef int update(
+        self,
+        SIZE_t new_pos
+    ) except -1 nogil:
+        """Updated statistics by moving sample_indices[pos:new_pos] to the left child.
+
+        Update the split point.
+
+        Parameters
+        ----------
+        new_pos : SIZE_t
+            The new ending position for which to move sample_indices from the right
+            child to the left child.
+        """
+        # infer left-child statistics
+        self.weighted_n_left = self.cumsum_weights_map[self.sample_indices[new_pos]]
+        self.sum_left = self.cumsum_map[self.sample_indices[new_pos]]
+
+        # Update right part statistics as a result
+        self.weighted_n_right = (self.weighted_n_node_samples - self.weighted_n_left)
+        self.sum_right = self.sum_total - self.sum_left
+
+        self.pos = new_pos
+        return 0
