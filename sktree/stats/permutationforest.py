@@ -11,7 +11,13 @@ from sklearn.utils.validation import check_X_y
 
 from sktree._lib.sklearn.ensemble._forest import BaseForest, ForestClassifier, ForestRegressor
 
-from .utils import METRIC_FUNCTIONS, REGRESSOR_METRICS, _compute_null_distribution_perm
+from .utils import (
+    METRIC_FUNCTIONS,
+    POSITIVE_METRICS,
+    POSTERIOR_FUNCTIONS,
+    REGRESSOR_METRICS,
+    _compute_null_distribution_perm,
+)
 
 
 class BasePermutationForest(MetaEstimatorMixin):
@@ -93,7 +99,10 @@ class BasePermutationForest(MetaEstimatorMixin):
         estimator.fit(X_train, y_train)
 
         # Either get the predicted value, or the posterior probabilities
-        y_pred = estimator.predict(X_test)
+        if metric in POSTERIOR_FUNCTIONS:
+            y_pred = estimator.predict_proba(X_test)
+        else:
+            y_pred = estimator.predict(X_test)
 
         # set variables to compute metric
         samples = indices_test
@@ -277,7 +286,10 @@ class BasePermutationForest(MetaEstimatorMixin):
             self.posterior_null_ = np.array([x[1] for x in null_dist])
 
         n_repeats = len(self.null_dist_)
-        pvalue = (1 + (self.null_dist_ < observe_stat).sum()) / (1 + n_repeats)
+        if metric in POSITIVE_METRICS:
+            pvalue = (1 + (self.null_dist_ >= observe_stat).sum()) / (1 + n_repeats)
+        else:
+            pvalue = (1 + (self.null_dist_ <= observe_stat).sum()) / (1 + n_repeats)
         return observe_stat, pvalue
 
 

@@ -141,16 +141,11 @@ def _compute_null_distribution_perm(
 
     # pre-allocate memory for the index array
     train_index_arr = np.arange(n_samples_train, dtype=int).reshape(-1, 1)
-    test_index_arr = np.arange(n_samples_test, dtype=int).reshape(-1, 1)
 
     null_metrics = np.zeros((n_repeats,))
 
     for idx in range(n_repeats):
         # permute the covariates inplace
-        rng.shuffle(test_index_arr)
-        perm_X_cov = X_test[test_index_arr, covariate_index]
-        X_test[:, covariate_index] = perm_X_cov
-
         rng.shuffle(train_index_arr)
         perm_X_cov = X_train[train_index_arr, covariate_index]
         X_train[:, covariate_index] = perm_X_cov
@@ -158,7 +153,12 @@ def _compute_null_distribution_perm(
         # train a new forest on the permuted data
         # XXX: should there be a train/test split here? even w/ honest forests?
         est.fit(X_train, y_train.ravel())
-        y_pred = est.predict(X_test)
+
+        # Either get the predicted value, or the posterior probabilities
+        if metric in POSTERIOR_FUNCTIONS:
+            y_pred = est.predict_proba(X_test)
+        else:
+            y_pred = est.predict(X_test)
 
         # compute two instances of the metric from the sampled trees
         metric_val = metric_func(y_test, y_pred)
