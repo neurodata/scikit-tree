@@ -8,6 +8,7 @@ from sklearn.metrics import (
     mean_absolute_error,
     mean_squared_error,
     roc_auc_score,
+    roc_curve,
 )
 from sklearn.utils.validation import check_X_y
 
@@ -65,6 +66,31 @@ def _cond_entropy(y_true: ArrayLike, y_pred_proba: ArrayLike) -> float:
     return H_YX
 
 
+# Define function to compute the sensitivity at 98% specificity
+def _SAS98(y_true: ArrayLike, y_pred_proba: ArrayLike, max_fpr=0.02) -> float:
+    """Compute the sensitivity at 98% specificity.
+    Parameters
+    ----------
+    y_true : ArrayLike of shape (n_samples,)
+        The true labels.
+    y_pred_proba : ArrayLike of shape (n_samples, n_outputs)
+        Posterior probabilities.
+    max_fpr : float, optional. Default=0.02
+    Returns
+    -------
+    float :
+        The estimated SAS98.
+    """
+    if y_true.squeeze().ndim != 1:
+        raise ValueError(f"y_true must be 1d, not {y_true.shape}")
+    if 0 in y_true or -1 in y_true :
+        fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba[:,1], pos_label=1,drop_intermediate = False)
+    else:
+        fpr, tpr, thresholds = roc_curve(y_true, y_pred_proba[:,1], pos_label=2,drop_intermediate = False)
+    s98 = max([tpr for (fpr, tpr) in zip(fpr, tpr) if fpr <= max_fpr])
+    return s98
+
+
 METRIC_FUNCTIONS = {
     "mse": mean_squared_error,
     "mae": mean_absolute_error,
@@ -72,6 +98,7 @@ METRIC_FUNCTIONS = {
     "auc": roc_auc_score,
     "mi": _mutual_information,
     "cond_entropy": _cond_entropy,
+    "sas98": _SAS98,
 }
 
 POSTERIOR_FUNCTIONS = ("mi", "auc", "cond_entropy")
@@ -272,3 +299,54 @@ def _compute_null_distribution_coleman(
         metric_star_pi[idx] = second_half_metric
 
     return metric_star, metric_star_pi
+
+
+def compute_posterior_metrics(posteriors: ArrayLike, y_true, test_idx, metric, max_fpr=0.1):
+    """Compute the metric from the posteriors.
+
+    Parameters
+    ----------
+    posteriors : ArrayLike of shape (n_estimators, n_samples, n_outputs)
+        The posteriors from the forest.
+    y_true : ArrayLike of shape (n_estimators,n_samples,)
+        The true labels.
+    test_idx : ArrayLike of shape (n_samples_test,)
+        The indices of the test samples.
+    metric : str
+        The metric to compute. The supported metrics are `mi`, `pauc`,`sas98`, `pvalues`.
+    max_fpr : float, optional. For `sas98` and `pauc`  default=0.1 )
+
+    Returns
+    -------
+    metric_val : float
+        The metric value.
+    """
+    # test the inputs
+    if posteriors.ndim != 3:
+        raise ValueError(f"posteriors must be 3d, not {posteriors.shape}")
+
+    n_estimators, _, _ = posteriors.shape
+    n_samples_test = test_idx.shape[1]
+    # check the test index and n_sample_test are the same
+    if len(test_idx) != n_samples_test:
+        raise RuntimeError(
+            f"The number of samples in `test_idx` {len(test_idx)} "
+            f"is not equal to the length of `y_true` {n_samples_test}"
+        )
+    # check that y_true is 1d
+    if y_true.squeeze().ndim != 1:
+        raise ValueError(f"y_true must be 1d, not {y_true.shape}")
+
+    # check the metric to be calculated is implemented
+    if metric not in METRIC_FUNCTIONS.keys():
+        raise ValueError(f"metric {metric} is not implemented")
+
+    metric_func = METRIC_FUNCTIONS[metric]
+    if metric in ["auc", "sas98"]:
+        metric_func = lambda y_true, y_pred_proba: roc_auc_score(
+            y_true, y_pred_proba, max_fpr=max_fpr
+        )
+    scores = np.zeros(n_estimators)
+    for idx in range(n_estimators):
+        scores[idx] = metric_func(y_true[test_idx], posteriors[idx, test_idx, :])
+    return np.mean(scores)
