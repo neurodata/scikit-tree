@@ -1326,7 +1326,7 @@ def build_coleman_forest(
         return observe_test_stat, pvalue
 
 
-def build_hyppo_oob_forest(est, X, y, verbose=False, **est_kwargs):
+def build_hyppo_oob_forest(est, X, y, verbose=False, two_split=False, **est_kwargs):
     """Build a hypothesis testing forest using oob samples.
 
     Parameters
@@ -1357,30 +1357,46 @@ def build_hyppo_oob_forest(est, X, y, verbose=False, **est_kwargs):
     # build forest
     est.fit(X, y.ravel(), **est_kwargs)
 
-    # now evaluate
-    X = est._validate_X_predict(X)
+    if two_split:
+        # get the structure indices as (n_estimators,) list of (n_subsamples_) arrays
+        struct_indices = est.structure_indices_
+        all_indices = np.arange(X.shape[0], dtype=int)
+        non_struct_indices = [np.setdiff1d(all_indices, indices) for indices in struct_indices]
 
-    # if we trained a binning tree, then we should re-bin the data
-    # XXX: this is inefficient and should be improved to be in line with what
-    # the Histogram Gradient Boosting Tree does, where the binning thresholds
-    # are passed into the tree itself, thus allowing us to set the node feature
-    # value thresholds within the tree itself.
-    if est.max_bins is not None:
-        X = est._bin_data(X, is_training_data=False).astype(DTYPE)
+        all_proba = np.full(
+            (len(est.estimators_), X.shape[0], est.n_classes_), np.nan, dtype=np.float64
+        )
+        # now fit the leaves and estimate the relevant statistic in each leaf node
+        for idx, (indices, tree) in enumerate(zip(non_struct_indices, est.estimators_)):
+            tree._fit_leaves(X[indices, :], y[indices], sample_weight=np.ones((len(indices),)))
 
-    # Assign chunk of trees to jobs
-    n_jobs, _, _ = _partition_estimators(est.n_estimators, est.n_jobs)
+            proba = tree.predict_proba(X[indices, :])
+            all_proba[idx, indices, :] = proba
+    else:
+        # now evaluate
+        X = est._validate_X_predict(X)
 
-    # avoid storing the output of every estimator by summing them here
-    lock = threading.Lock()
-    # accumulate the predictions across all trees
-    all_proba = np.full(
-        (len(est.estimators_), X.shape[0], est.n_classes_), np.nan, dtype=np.float64
-    )
-    Parallel(n_jobs=n_jobs, verbose=verbose, require="sharedmem")(
-        delayed(_parallel_predict_proba_oob)(e.predict_proba, X, all_proba, idx, test_idx, lock)
-        for idx, (e, test_idx) in enumerate(zip(est.estimators_, est.oob_samples_))
-    )
+        # if we trained a binning tree, then we should re-bin the data
+        # XXX: this is inefficient and should be improved to be in line with what
+        # the Histogram Gradient Boosting Tree does, where the binning thresholds
+        # are passed into the tree itself, thus allowing us to set the node feature
+        # value thresholds within the tree itself.
+        if est.max_bins is not None:
+            X = est._bin_data(X, is_training_data=False).astype(DTYPE)
+
+        # Assign chunk of trees to jobs
+        n_jobs, _, _ = _partition_estimators(est.n_estimators, est.n_jobs)
+
+        # avoid storing the output of every estimator by summing them here
+        lock = threading.Lock()
+        # accumulate the predictions across all trees
+        all_proba = np.full(
+            (len(est.estimators_), X.shape[0], est.n_classes_), np.nan, dtype=np.float64
+        )
+        Parallel(n_jobs=n_jobs, verbose=verbose, require="sharedmem")(
+            delayed(_parallel_predict_proba_oob)(e.predict_proba, X, all_proba, idx, test_idx, lock)
+            for idx, (e, test_idx) in enumerate(zip(est.estimators_, est.oob_samples_))
+        )
     return est, all_proba
 
 
