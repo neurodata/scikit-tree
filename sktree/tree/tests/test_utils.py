@@ -7,7 +7,7 @@ from numpy.testing import assert_equal
 from sktree._lib.sklearn.tree._criterion import Gini
 from sktree._lib.sklearn.tree._utils import _any_isnan_axis0
 
-from .._utils import ravel_multi_index, unravel_index
+from .._utils import cartesian_python, ravel_multi_index, unravel_index
 from ..manifold._morf_splitter import BestPatchSplitterTester
 
 
@@ -142,7 +142,7 @@ def test_unravel_index():
     shape = np.asarray((5,))
     expected_output = [(0,), (1,), (2,), (3,), (4,)]
     for idx, index in enumerate(indices):
-        assert unravel_index(index, shape) == expected_output[idx]
+        assert_equal(unravel_index(index, shape), expected_output[idx])
 
     # Test with 2D array
     indices = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
@@ -202,3 +202,12 @@ def test_ravel_multi_index():
     #     assert str(e) == "Invalid index"
     # else:
     #     assert False, "Expected ValueError"
+
+
+def test_cartesian_prod():
+    sequences = [[1, 2], [3, 4, 5]]
+
+    from_itertools = list(product(*sequences))
+    from_cython = cartesian_python(sequences)
+
+    assert_equal(from_itertools, from_cython)

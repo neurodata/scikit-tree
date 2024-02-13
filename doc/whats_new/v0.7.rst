@@ -25,6 +25,9 @@ Changelog
     by `Adam Li`_ (:pr:`#211`)
 - |Feature| Introduce a new set of simulations based on Marron and Wand 1992.
     by `Sambit Panda`_ (:pr:`#203`)
+- |Fix| :class:`sktree.tree.PatchObliqueDecisionTreeClassifier` now correctly
+  handles the case where one or more features are discontiguous.
+  by `Jaewon Chung`_ (:pr:`#219`).
 
 Code and Documentation Contributors
 -----------------------------------
@@ -34,3 +37,4 @@ the project since version inception, including:
 
 * `Adam Li`_
 * `Sambit Panda`_
+* `Jaewon Chung`_

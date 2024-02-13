@@ -16,7 +16,7 @@ from libcpp.vector cimport vector
 
 from ..._lib.sklearn.tree._criterion cimport Criterion
 from ..._lib.sklearn.tree._utils cimport rand_int
-from .._utils cimport ravel_multi_index_cython, unravel_index_cython
+from .._utils cimport cartesian_cython, ravel_multi_index_cython, unravel_index_cython
 
 
 cdef class PatchSplitter(BestObliqueSplitter):
@@ -156,16 +156,11 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
 
         # create a buffer for storing the patch dimensions sampled per projection matrix
         self.patch_dims_buff = np.zeros(data_dims.shape[0], dtype=np.intp)
-        self.unraveled_patch_point = np.zeros(data_dims.shape[0], dtype=np.intp)
 
         # store the min and max patch dimension constraints
         self.min_patch_dims = min_patch_dims
         self.max_patch_dims = max_patch_dims
         self.dim_contiguous = dim_contiguous
-
-        # initialize a buffer to allow for Fisher-Yates
-        self._index_patch_buffer = np.zeros(np.max(self.max_patch_dims), dtype=np.intp)
-        self._index_data_buffer = np.zeros(np.max(self.data_dims), dtype=np.intp)
 
         # whether or not to perform some discontinuous sampling
         if not all(self.dim_contiguous):
@@ -211,6 +206,7 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
         # compute top-left seed for the multi-dimensional patch
         cdef intp_t top_left_patch_seed
         cdef intp_t patch_size = 1
+        cdef vector[intp_t] unraveled_patch_point = vector[intp_t](self.ndim)
 
         cdef UINT32_t* random_state = &self.rand_r_state
 
@@ -232,7 +228,6 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
                 self.max_patch_dims[idx] + 1,
                 random_state
             )
-
             # sample the top-left index and patch size for this dimension based on boundary effects
             if self.boundary is None:
                 # compute the difference between the image dimensions and the current
@@ -262,10 +257,10 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
                 # Convert the top-left-seed value to it's appropriate index in the full image.
                 top_left_patch_seed = max(0, dim - patch_dim + 1)
 
-            self.unraveled_patch_point[idx] = top_left_patch_seed
+            unraveled_patch_point[idx] = top_left_patch_seed
 
         top_left_patch_seed = ravel_multi_index_cython(
-            self.unraveled_patch_point,
+            unraveled_patch_point,
             self.data_dims
         )
         return top_left_patch_seed, patch_size
@@ -315,93 +310,65 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
         intp_t top_left_patch_seed,
         const intp_t[:] patch_dims,
     ) noexcept nogil:
+        """
+        Samples projection vector.
+
+        Parameters
+        ----------
+        proj_mat_weights : vector[vector[float32_t]]
+            The weights of the projection matrix.
+        proj_mat_indices : vector[vector[intp_t]]
+            The indices of the projection matrix.
+        proj_i : intp_t
+            The index of feature.
+        patch_size : intp_t
+            The total size of the patch.
+        top_left_patch_seed : intp_t
+            The top-left seed of the patch raveled.
+        patch_dims : array-like, shape (n_dims,)
+            The dimensions of the patch.
+        """
+        # initialize a buffer to allow for Fisher-Yates
+        cdef vector[intp_t] _index_data_buffer
+
         cdef UINT32_t* random_state = &self.rand_r_state
-        # iterates over the size of the patch
-        cdef intp_t patch_idx
-
-        # stores how many patches we have iterated so far
-        cdef intp_t vectorized_patch_offset
-        cdef intp_t vectorized_point_offset
-        cdef intp_t vectorized_point
-
-        cdef intp_t dim_idx
+        cdef intp_t num_rows
+        cdef int ndim = self.ndim
+        cdef vector[vector[intp_t]] points = vector[vector[intp_t]](ndim)
+        cdef intp_t patch_dim
+        cdef intp_t idx
+        cdef intp_t i
 
         # weights are default to 1
         cdef float32_t weight = 1.
 
-        # XXX: still unsure if it works yet
-        # XXX: THIS ONLY WORKS FOR THE FIRST DIMENSION THAT IS DISCONTIGUOUS.
-        cdef intp_t other_dims_offset
-        cdef intp_t row_index
+        cdef vector[intp_t] unraveled_patch_point = vector[intp_t](self.ndim)
+        unraveled_patch_point = unravel_index_cython(top_left_patch_seed, self.data_dims)
 
-        cdef intp_t i
-        cdef intp_t num_rows = self.data_dims[0]
-        if self._discontiguous:
-            # fill with values 0, 1, ..., dimension - 1
-            for i in range(0, self.data_dims[0]):
-                self._index_data_buffer[i] = i
-            # then shuffle indices using Fisher-Yates
-            for i in range(num_rows):
-                j = rand_int(0, num_rows - i, random_state)
-                self._index_data_buffer[i], self._index_data_buffer[j] = \
-                    self._index_data_buffer[j], self._index_data_buffer[i]
-            # now select the first `patch_dims[0]` indices
-            for i in range(num_rows):
-                self._index_patch_buffer[i] = self._index_data_buffer[i]
+        for dim_idx in range(ndim):
+            if self.dim_contiguous[dim_idx]:
+                patch_dim = patch_dims[dim_idx]
+                idx = patch_dim + unraveled_patch_point[dim_idx]
+                for i in range(unraveled_patch_point[dim_idx], idx):
+                    points[dim_idx].push_back(i)
+            else:
+                num_rows = self.data_dims[dim_idx]
+                for i in range(0, num_rows):
+                    _index_data_buffer.push_back(i)
+                # then shuffle indices using Fisher-Yates
+                for i in range(num_rows):
+                    j = rand_int(0, num_rows - i, random_state)
+                    _index_data_buffer[i], _index_data_buffer[j] = \
+                        _index_data_buffer[j], _index_data_buffer[i]
 
-        for patch_idx in range(patch_size):
-            # keep track of which dimensions of the patch we have iterated over
-            vectorized_patch_offset = 1
+                for i in range(0, patch_dims[dim_idx]):  # populate
+                    points[dim_idx].push_back(_index_data_buffer[i])
+                _index_data_buffer.clear()
 
-            # Once the vectorized top-left-seed is unraveled, you can add the patch
-            # points in the array structure and compute their vectorized (unraveled)
-            # points, which are added to the projection vector
-            unravel_index_cython(top_left_patch_seed, self.data_dims, self.unraveled_patch_point)
-
-            for dim_idx in range(self.ndim):
-                # compute the offset from the top-left patch seed based on:
-                # 1. the current patch index
-                # 2. the patch dimension indexed by `dim_idx`
-                # 3. and the vectorized patch dimensions that we have seen so far
-                # the `vectorized_point_offset` is the offset from the top-left vectorized seed for this dimension
-                vectorized_point_offset = (patch_idx // (vectorized_patch_offset)) % patch_dims[dim_idx]
-
-                # then we compute the actual point in the original data shape
-                self.unraveled_patch_point[dim_idx] = self.unraveled_patch_point[dim_idx] + vectorized_point_offset
-                vectorized_patch_offset *= patch_dims[dim_idx]
-
-            # if any dimensions are discontiguous, we want to migrate the entire axis a fixed amount
-            # based on the shuffling
-            if self._discontiguous is True:
-                for dim_idx in range(self.ndim):
-                    if self.dim_contiguous[dim_idx] is True:
-                        continue
-
-                    # determine the "row" we are currently on
-                    # other_dims_offset = 1
-                    # for idx in range(dim_idx + 1, self.ndim):
-                    #     other_dims_offset *= self.data_dims[idx]
-                    # row_index = self.unraveled_patch_point[dim_idx] % other_dims_offset
-                    # determine the "row" we are currently on
-                    other_dims_offset = 1
-                    for idx in range(dim_idx + 1, self.ndim):
-                        if not self.dim_contiguous[idx]:
-                            other_dims_offset *= self.data_dims[idx]
-
-                    row_index = 0
-                    for idx in range(dim_idx + 1, self.ndim):
-                        if not self.dim_contiguous[idx]:
-                            row_index += (
-                                (self.unraveled_patch_point[idx] // other_dims_offset) %
-                                self.patch_dims_buff[idx]
-                            ) * other_dims_offset
-                            other_dims_offset //= self.data_dims[idx]
-
-                    # assign random row index now
-                    self.unraveled_patch_point[dim_idx] = self._index_patch_buffer[row_index]
-
-            # ravel the patch point into the original data dimensions
-            vectorized_point = ravel_multi_index_cython(self.unraveled_patch_point, self.data_dims)
+        # make cartesian product of the points, ravel, then add to proj_mat_indices
+        cdef vector[vector[intp_t]] products = cartesian_cython(points)
+        for point in products:
+            vectorized_point = ravel_multi_index_cython(point, self.data_dims)
             proj_mat_indices[proj_i].push_back(vectorized_point)
             proj_mat_weights[proj_i].push_back(weight)
 

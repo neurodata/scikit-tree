@@ -10,6 +10,7 @@ import numpy as np
 cimport numpy as cnp
 
 cnp.import_array()
+from libcpp.vector cimport vector
 
 from .._lib.sklearn.tree._utils cimport rand_uniform
 
@@ -53,12 +54,11 @@ cpdef unravel_index(
     """
     index = np.intp(index)
     shape = np.array(shape)
-    coords = np.empty(shape.shape[0], dtype=np.intp)
-    unravel_index_cython(index, shape, coords)
+    coords = unravel_index_cython(index, shape)
     return coords
 
 
-cpdef ravel_multi_index(intp_t[:] coords, const intp_t[:] shape):
+cpdef ravel_multi_index(vector[intp_t] coords, const intp_t[:] shape):
     """Converts a tuple of coordinate arrays into a flat index.
 
     Purely used for testing purposes.
@@ -83,7 +83,7 @@ cpdef ravel_multi_index(intp_t[:] coords, const intp_t[:] shape):
     return ravel_multi_index_cython(coords, shape)
 
 
-cdef void unravel_index_cython(intp_t index, const intp_t[:] shape, intp_t[:] coords) noexcept nogil:
+cdef vector[intp_t] unravel_index_cython(intp_t index, const intp_t[:] shape) noexcept nogil:
     """Converts a flat index into a tuple of coordinate arrays.
 
     Parameters
@@ -102,14 +102,17 @@ cdef void unravel_index_cython(intp_t index, const intp_t[:] shape, intp_t[:] co
     """
     cdef intp_t ndim = shape.shape[0]
     cdef intp_t j, size
+    cdef vector[intp_t] coords = vector[intp_t](ndim)
 
     for j in range(ndim - 1, -1, -1):
         size = shape[j]
         coords[j] = index % size
         index //= size
 
+    return coords
 
-cdef intp_t ravel_multi_index_cython(intp_t[:] coords, const intp_t[:] shape) noexcept nogil:
+
+cdef intp_t ravel_multi_index_cython(vector[intp_t] coords, const intp_t[:] shape) noexcept nogil:
     """Converts a tuple of coordinate arrays into a flat index.
 
     Parameters
@@ -145,3 +148,21 @@ cdef intp_t ravel_multi_index_cython(intp_t[:] coords, const intp_t[:] shape) no
             flat_index *= shape[i + 1]
 
     return flat_index
+
+
+cdef vector[vector[intp_t]] cartesian_cython(vector[vector[intp_t]] sequences) noexcept nogil:
+    cdef vector[vector[intp_t]] results = vector[vector[intp_t]](1)
+    cdef vector[vector[intp_t]] next_results
+    for new_values in sequences:
+        for result in results:
+            for value in new_values:
+                result_copy = result
+                result_copy.push_back(value)
+                next_results.push_back(result_copy)
+        results = next_results
+        next_results.clear()
+    return results
+
+
+cpdef cartesian_python(vector[vector[intp_t]]& sequences):
+    return cartesian_cython(sequences)
