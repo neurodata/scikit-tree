@@ -335,7 +335,7 @@ class BaseForestHT(MetaEstimatorMixin):
         X: ArrayLike,
         y: ArrayLike,
         covariate_index: Optional[ArrayLike] = None,
-        metric="mi",
+        metric="sa98",
         return_posteriors: bool = False,
         check_input: bool = True,
         **metric_kwargs,
@@ -351,7 +351,7 @@ class BaseForestHT(MetaEstimatorMixin):
         covariate_index : ArrayLike, optional of shape (n_covariates,)
             The index array of covariates to shuffle, by default None.
         metric : str, optional
-            The metric to compute, by default "mse".
+            The metric to compute, by default "sa98".
         return_posteriors : bool, optional
             Whether or not to return the posteriors, by default False.
         check_input : bool, optional

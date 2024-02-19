@@ -125,7 +125,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         the input samples) required to be at a leaf node. Samples have
         equal weight when sample_weight is not provided.
 
-    max_features : {"sqrt", "log2", None}, int or float, default="sqrt"
+    max_features : {"sqrt", "log2", None}, int or float, default=0.3
         The number of features to consider when looking for the best split:
 
         - If int, then consider `max_features` features at each split.
@@ -229,7 +229,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         ``ccp_alpha`` will be chosen. By default, no pruning is performed. See
         :ref:`minimal_cost_complexity_pruning` for details.
 
-    max_samples : int or float, default=None
+    max_samples : int or float, default=1.6
         If bootstrap is True, the number of samples to draw from X
         to train each base tree estimator with replacement.
         If bootstrap is False, then this will subsample
@@ -257,7 +257,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         that one MUST use trees imported from the `sktree.tree`
         API namespace rather than from `sklearn.tree`.
 
-    stratify : bool
+    stratify : bool, default=True
         Whether or not to stratify sample when considering structure and leaf indices.
         By default False.
 
@@ -403,10 +403,10 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         min_samples_split=2,
         min_samples_leaf=1,
         min_weight_fraction_leaf=0.0,
-        max_features="sqrt",
+        max_features=0.3,
         max_leaf_nodes=None,
         min_impurity_decrease=0.0,
-        bootstrap=False,
+        bootstrap=True,
         oob_score=False,
         n_jobs=None,
         random_state=None,
@@ -414,11 +414,11 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         warm_start=False,
         class_weight=None,
         ccp_alpha=0.0,
-        max_samples=None,
+        max_samples=1.6,
         honest_prior="empirical",
         honest_fraction=0.5,
         tree_estimator=None,
-        stratify=False,
+        stratify=True,
     ):
         super().__init__(
             estimator=HonestTreeClassifier(),
