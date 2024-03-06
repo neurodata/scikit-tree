@@ -21,7 +21,7 @@ from ._oblique_splitter cimport ObliqueSplitRecord
 
 cdef class ObliqueTree(Tree):
     cdef vector[vector[float32_t]] proj_vec_weights  # (capacity, n_features) array of projection vectors
-    cdef vector[vector[intp_t]] proj_vec_indices   # (capacity, n_features) array of projection vectors
+    cdef vector[vector[intp_t]] proj_vec_indices     # (capacity, n_features) array of projection vectors
 
     # overridden methods
     cdef int _resize_c(

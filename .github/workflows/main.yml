@@ -46,28 +46,32 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: "x64"
           cache: "pip"
-          cache-dependency-path: "requirements.txt"
-
-      - name: show-gcc
-        run: |
-          gcc --version
-
-      - name: Install Ccache for MacOSX
-        if: ${{ matrix.os == 'macos-latest'}}
-        run: |
-          brew install ccache
+          cache-dependency-path: "pyproject.toml"
 
       - name: Install packages for Ubuntu
         if: ${{ matrix.os == 'ubuntu-22.04'}}
         run: |
           sudo apt-get update
           sudo apt-get install -y libopenblas-dev libatlas-base-dev liblapack-dev gfortran libgmp-dev libmpfr-dev libsuitesparse-dev ccache libmpc-dev
+          sudo apt-get install -y gcc
+          sudo apt-get update
+
+      - name: Install Ccache for MacOSX
+        if: ${{ matrix.os == 'macos-latest'}}
+        run: |
+          brew install ccache
+          brew install gcc
+
+      - name: show-gcc
+        run: |
+          gcc --version
 
       - name: Install Python packages
         run: |
-          python -m pip install -r build_requirements.txt
           python -m pip install spin
-          python -m pip install -r test_requirements.txt
+          python -m spin setup-submodule
+          python -m pip install .[build]
+          python -m pip install .[test]
 
       - name: Prepare compiler cache
         id: prep-ccache
@@ -153,7 +157,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: "x64"
           cache: "pip"
-          cache-dependency-path: "requirements.txt"
+          cache-dependency-path: "pyproject.toml"
 
       - name: show-gcc
         run: |
@@ -172,9 +176,10 @@ jobs:
 
       - name: Install Python packages
         run: |
-          python -m pip install -r build_requirements.txt
           python -m pip install spin
-          python -m pip install -r test_requirements.txt
+          python -m spin setup-submodule
+          python -m pip install .[build]
+          python -m pip install .[test]
 
       - name: Prepare compiler cache
         id: prep-ccache
@@ -232,7 +237,7 @@ jobs:
       - name: Upload coverage stats to codecov
         uses: codecov/codecov-action@v4
         with:
-          # python spin goes into the INSTALLED path in order to run pytest
+          # spin goes into the INSTALLED path in order to run pytest
           files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
@@ -258,7 +263,7 @@ jobs:
 #         python-version: "3.10"
 #         architecture: "x64"
 #         cache: "pip"
-#         cache-dependency-path: "requirements.txt"
+#         cache-dependency-path: "pyproject.toml"
 
 #     - name: install-rtools
 #       run: |
@@ -287,8 +292,8 @@ jobs:
 
 #     - name: pip-packages
 #       run: |
-#         pip install -r build_requirements.txt
-#         pip install -r test_requirements.txt
+#         pip install .[build]
+#         pip install .[test]
 #         pip install spin
 #         pip install numpy==1.22.4
 
@@ -319,8 +324,8 @@ jobs:
 #       run: |
 #         echo "SCIPY_USE_PROPACK=1" >> $env:GITHUB_ENV
 #         echo "FORCE_SUBMODULE=True" >> $env:GITHUB_ENV
-#         python spin setup_submodule --forcesubmodule
-#         python spin build -j 2
+#         spin setup_submodule --forcesubmodule
+#         spin build -j 2
 #         # Necessary because GitHub Actions checks out the repo to D:\ while OpenBLAS
 #         # got installed to C:\ higher up. The copying with `--win-cp-openblas` fails
 #         # when things are split over drives.
@@ -329,4 +334,4 @@ jobs:
 
 #     - name: test
 #       run: |
-#         python spin test
+#         spin test

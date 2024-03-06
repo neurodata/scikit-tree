@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "mesonpy"
 requires = [
-  "meson-python>=0.13.0",
+  "meson-python>=0.15.0",
   'ninja',
   # `wheel` is needed for non-isolated builds, given that `meson-python`
   # doesn't list it as a runtime requirement (at least in 0.10.0)
@@ -9,8 +9,8 @@ requires = [
   "wheel",
   "setuptools<=65.5",
   "packaging",
-  "Cython>=0.29.24",
-  "scikit-learn>=1.4",
+  "Cython>=3.0.8",
+  "scikit-learn>=1.4.1",
   "scipy>=1.5.0",
   "numpy>=1.25; python_version>='3.9'"
 ]
@@ -49,9 +49,9 @@ include = [
   {path = "meson.build", format = "sdist"}
 ]
 dependencies = [
-  'numpy',
+  'numpy>=1.25.0',
   'scipy>=1.5.0',
-  'scikit-learn>=1.3.1'
+  'scikit-learn>=1.4.1'
 ]
 
 [project.optional-dependencies]
@@ -68,10 +68,10 @@ build = [
   'meson-python',
   'spin',
   'doit',
-  'scikit-learn>=1.3.1',
-  'Cython>=0.29.36',
+  'scikit-learn>=1.4.1',
+  'Cython>=3.0.8',
   'ninja',
-  'numpy',
+  'numpy>=1.25.0',
   'rich-click',
   'pydevtool'
 ]

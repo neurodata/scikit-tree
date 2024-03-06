@@ -11,7 +11,6 @@ cimport numpy as cnp
 
 cnp.import_array()
 
-from cython.operator cimport dereference as deref
 from libcpp.vector cimport vector
 
 from ..._lib.sklearn.tree._criterion cimport Criterion
@@ -411,8 +410,8 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
         intp_t end,
         const intp_t[:] samples,
         float32_t[:] feature_values,
-        vector[float32_t]* proj_vec_weights,  # weights of the vector (max_features,)
-        vector[intp_t]* proj_vec_indices    # indices of the features (max_features,)
+        vector[float32_t]& proj_vec_weights,  # weights of the vector (max_features,)
+        vector[intp_t]& proj_vec_indices    # indices of the features (max_features,)
     ) noexcept nogil:
         """Compute the feature values for the samples[start:end] range.
 
@@ -433,13 +432,13 @@ cdef class BestPatchSplitter(BaseDensePatchSplitter):
             feature_values[idx] = 0
             for jdx in range(0, proj_vec_indices.size()):
                 feature_values[idx] += self.X[
-                    samples[idx], deref(proj_vec_indices)[jdx]
-                ] * deref(proj_vec_weights)[jdx]
+                    samples[idx], proj_vec_indices[jdx]
+                ] * proj_vec_weights[jdx]
 
                 if self.feature_weight is not None:
                     # gets the feature weight for this specific column from X
                     # the default of feature_weights[i] is (1/n_features) for all i
-                    patch_weight += self.feature_weight[samples[idx], deref(proj_vec_indices)[jdx]]
+                    patch_weight += self.feature_weight[samples[idx], proj_vec_indices[jdx]]
 
             if self.feature_weight is not None:
                 feature_values[idx] /= patch_weight

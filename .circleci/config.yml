@@ -81,12 +81,14 @@ jobs:
       - run:
           name: setup Python venv
           command: |
-            pip install -r build_requirements.txt
-            pip install -r doc_requirements.txt
+            pip install --upgrade pip spin
+            spin setup-submodule
+            pip install .[build]
+            pip install .[doc]
       - run:
           name: build scikit-tree
           command: |
-            python spin build -j2
+            spin build -j2
 
       - save_cache:
           key: deps_ccache-{{ .Branch }}
@@ -127,7 +129,7 @@ jobs:
             echo "After..."
             ls build-install/**
             export PYTHONPATH=$PWD/build-install/usr/lib/python3.8/site-packages
-            python ./spin docs
+            ./spin docs
 
       - store_artifacts:
           path: doc/_build/html

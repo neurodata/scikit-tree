@@ -259,15 +259,18 @@ def test_oblique_tree_sampling(Tree, random_state=0):
     assert rc_cv_scores.mean() > 0.91
 
 
+@pytest.mark.parametrize("splitter", ["best", "random"])
 @pytest.mark.parametrize("Tree", OBLIQUE_TREES.values())
-def test_oblique_trees_feature_combinations_less_than_n_features(Tree):
+def test_oblique_trees_feature_combinations_less_than_n_features(Tree, splitter):
     """Test the hyperparameter ``feature_combinations`` behaves properly."""
 
     X, y = iris.data[:5, :], iris.target[:5, ...]
     _, n_features = X.shape
 
     # asset that the feature combinations is less than the number of features
-    estimator = ObliqueDecisionTreeClassifier(random_state=0, feature_combinations=3)
+    estimator = ObliqueDecisionTreeClassifier(
+        splitter=splitter, random_state=0, feature_combinations=3
+    )
     estimator.fit(X, y)
     assert estimator.feature_combinations_ < n_features
 
@@ -280,8 +283,9 @@ def test_oblique_trees_feature_combinations_less_than_n_features(Tree):
     assert estimator.feature_combinations_ < n_features
 
 
+@pytest.mark.parametrize("splitter", ["best", "random"])
 @pytest.mark.parametrize("Tree", OBLIQUE_TREES.values())
-def test_oblique_trees_feature_combinations(Tree):
+def test_oblique_trees_feature_combinations(Tree, splitter):
     """Test the hyperparameter ``feature_combinations`` behaves properly."""
 
     if is_classifier(Tree):
@@ -296,27 +300,27 @@ def test_oblique_trees_feature_combinations(Tree):
     with pytest.raises(
         RuntimeError, match=f"Feature combinations {n_features + 1} should not be greater"
     ):
-        estimator = Tree(random_state=0, feature_combinations=n_features + 1)
+        estimator = Tree(splitter=splitter, random_state=0, feature_combinations=n_features + 1)
         estimator.fit(X, y)
 
     # asset that the feature combinations is less than the number of features
-    estimator = Tree(random_state=0, feature_combinations=3)
+    estimator = Tree(splitter=splitter, random_state=0, feature_combinations=3)
     estimator.fit(X, y)
     assert estimator.feature_combinations_ < n_features
 
     # default option should make it 1.5 if n_features > 1.5
-    estimator = Tree(random_state=0)
+    estimator = Tree(splitter=splitter, random_state=0)
     estimator.fit(X, y)
     assert estimator.feature_combinations_ == 1.5
 
     # setting the feature combinations explicitly is fine as long as it is < n_features
-    estimator = Tree(random_state=0, feature_combinations=3)
+    estimator = Tree(splitter=splitter, random_state=0, feature_combinations=3)
     estimator.fit(X, y)
     assert estimator.feature_combinations_ == 3
 
     # edge-case of only a single feature should set feature_combinations properly
     X = X[:, 0:1]
-    estimator = Tree(random_state=0)
+    estimator = Tree(splitter=splitter, random_state=0)
     estimator.fit(X, y)
     assert estimator.feature_combinations_ == 1
 
@@ -524,7 +528,9 @@ def test_balance_property(criterion, Tree):
     X, y = diabetes.data, diabetes.target
     reg = Tree(criterion=criterion)
     reg.fit(X, y)
-    assert np.sum(reg.predict(X)) == pytest.approx(np.sum(y))
+    assert np.sum(reg.predict(X)) == pytest.approx(
+        np.sum(y)
+    ), f"Failed with {Tree} and {criterion}: {np.sum(reg.predict(X))} != {np.sum(y)}"
 
 
 @pytest.mark.parametrize("Tree", ALL_TREES.values())

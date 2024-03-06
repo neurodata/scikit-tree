@@ -100,8 +100,8 @@ cdef class BaseObliqueSplitter(Splitter):
         intp_t end,
         const intp_t[:] samples,
         float32_t[:] feature_values,
-        vector[float32_t]* proj_vec_weights,  # weights of the vector (max_features,)
-        vector[intp_t]* proj_vec_indices    # indices of the features (max_features,)
+        vector[float32_t]& proj_vec_weights,  # weights of the vector (max_features,)
+        vector[intp_t]& proj_vec_indices      # indices of the features (max_features,)
     ) noexcept nogil:
         """Compute the feature values for the samples[start:end] range.
 
@@ -115,8 +115,8 @@ cdef class BaseObliqueSplitter(Splitter):
         # Compute linear combination of features and then
         # sort samples according to the feature values.
         for jdx in range(0, proj_vec_indices.size()):
-            col_idx = deref(proj_vec_indices)[jdx]
-            col_weight = deref(proj_vec_weights)[jdx]
+            col_idx = proj_vec_indices[jdx]
+            col_weight = proj_vec_weights[jdx]
 
             for idx in range(start, end):
                 # initialize the feature value to 0
@@ -322,12 +322,13 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
 
         cdef intp_t feat_i, p       # index over computed features and start/end
         cdef intp_t partition_end
-        cdef float32_t temp_d         # to compute a projection feature value
+        cdef float32_t temp_d       # to compute a projection feature value
 
         # instantiate the split records
         _init_split(&best_split, end)
 
-        # Sample the projection matrix
+        # Sample the projection matrix by passing in a reference to the underlying
+        # vector of vectors for weights and indices
         self.sample_proj_mat(self.proj_mat_weights, self.proj_mat_indices)
 
         # For every vector in the projection matrix
@@ -336,11 +337,9 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
             if self.proj_mat_weights[feat_i].empty():
                 continue
 
-            # XXX: 'feature' is not actually used in oblique split records
-            # Just indicates which split was sampled
+            # Note: 'feature' is not actually used in oblique split records
+            # Just indicates which index was sampled in the sampled projection matrix
             current_split.feature = feat_i
-            current_split.proj_vec_weights = &self.proj_mat_weights[feat_i]
-            current_split.proj_vec_indices = &self.proj_mat_indices[feat_i]
 
             # Compute linear combination of features and then
             # sort samples according to the feature values.
@@ -349,8 +348,8 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
                 end,
                 samples,
                 feature_values,
-                &self.proj_mat_weights[feat_i],
-                &self.proj_mat_indices[feat_i]
+                self.proj_mat_weights[feat_i],
+                self.proj_mat_indices[feat_i]
             )
 
             # Sort the samples
@@ -395,6 +394,14 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
 
                         best_split = current_split  # copy
 
+                        # Note: we do not make a copy above if we are not going to use it
+                        # as the candidate best split, so here we create a pointer to the
+                        # copy of the projection vectors
+                        # best_split.proj_vec_weights = self.proj_mat_weights[feat_i]
+                        # best_split.proj_vec_indices = self.proj_mat_indices[feat_i]
+                        # best_proj_vec_weights = &self.proj_mat_weights[feat_i]
+                        # best_proj_vec_indices = &self.proj_mat_indices[feat_i]
+
         # Reorganize into samples[start:best_split.pos] + samples[best_split.pos:end]
         if best_split.pos < end:
             partition_end = end
@@ -403,9 +410,12 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
             while p < partition_end:
                 # Account for projection vector
                 temp_d = 0.0
-                for j in range(best_split.proj_vec_indices.size()):
-                    temp_d += self.X[samples[p], deref(best_split.proj_vec_indices)[j]] *\
-                                deref(best_split.proj_vec_weights)[j]
+                # for j in range(best_split.proj_vec_indices.size()):
+                #    # temp_d += self.X[samples[p], best_split.proj_vec_indices[j]] *\
+                #    #             best_split.proj_vec_weights[j]
+                for j in range(self.proj_mat_weights[best_split.feature].size()):
+                    temp_d += self.X[samples[p], self.proj_mat_indices[best_split.feature][j]] *\
+                                self.proj_mat_weights[best_split.feature][j]
 
                 if temp_d <= best_split.threshold:
                     p += 1
@@ -422,9 +432,14 @@ cdef class BestObliqueSplitter(ObliqueSplitter):
             best_split.improvement = self.criterion.impurity_improvement(
                 impurity, best_split.impurity_left, best_split.impurity_right)
 
-        # Return values
-        deref(oblique_split).proj_vec_indices = best_split.proj_vec_indices
-        deref(oblique_split).proj_vec_weights = best_split.proj_vec_weights
+        # Ensure that the projection vectors are copied into the underlying split record that is
+        # seen by the tree builder
+        # deref(oblique_split).proj_vec_indices = deref(best_proj_vec_indices) # best_split.proj_vec_indices
+        # deref(oblique_split).proj_vec_weights = deref(best_proj_vec_weights) # best_split.proj_vec_weights
+        deref(oblique_split).proj_vec_indices = self.proj_mat_indices[best_split.feature]
+        deref(oblique_split).proj_vec_weights = self.proj_mat_weights[best_split.feature]
+
+        # Dereference the pointer to the split record and set the values here
         deref(oblique_split).feature = best_split.feature
         deref(oblique_split).pos = best_split.pos
         deref(oblique_split).threshold = best_split.threshold
@@ -560,11 +575,9 @@ cdef class RandomObliqueSplitter(ObliqueSplitter):
             if self.proj_mat_weights[feat_i].empty():
                 continue
 
-            # XXX: 'feature' is not actually used in oblique split records
-            # Just indicates which split was sampled
+            # Note: 'feature' is not actually used in oblique split records
+            # Just indicates which index was sampled in the sampled projection matrix
             current_split.feature = feat_i
-            current_split.proj_vec_weights = &self.proj_mat_weights[feat_i]
-            current_split.proj_vec_indices = &self.proj_mat_indices[feat_i]
 
             # Compute linear combination of features
             self.compute_features_over_samples(
@@ -572,8 +585,8 @@ cdef class RandomObliqueSplitter(ObliqueSplitter):
                 end,
                 samples,
                 feature_values,
-                &self.proj_mat_weights[feat_i],
-                &self.proj_mat_indices[feat_i]
+                self.proj_mat_weights[feat_i],
+                self.proj_mat_indices[feat_i]
             )
 
             # find min, max of the feature_values
@@ -618,6 +631,15 @@ cdef class RandomObliqueSplitter(ObliqueSplitter):
                 best_proxy_improvement = current_proxy_improvement
                 best_split = current_split  # copy
 
+                # Note: we do not make a copy above if we are not going to use it
+                # as the candidate best split
+                # The self.proj_mat_weights and self.proj_mat_indices already contain
+                # the best projection vector found at `best_split.feature` (i.e. feat_i).
+                # best_split.proj_vec_weights = self.proj_mat_weights[feat_i]
+                # best_split.proj_vec_indices = self.proj_mat_indices[feat_i]
+                # best_proj_vec_indices = &self.proj_mat_indices[feat_i]
+                # best_proj_vec_weights = &self.proj_mat_weights[feat_i]
+
             n_visited_features += 1
 
         # Reorganize into samples[start:best_split.pos] + samples[best_split.pos:end]
@@ -628,9 +650,12 @@ cdef class RandomObliqueSplitter(ObliqueSplitter):
             while p < partition_end:
                 # Account for projection vector
                 temp_d = 0.0
-                for j in range(best_split.proj_vec_indices.size()):
-                    temp_d += self.X[samples[p], deref(best_split.proj_vec_indices)[j]] *\
-                                deref(best_split.proj_vec_weights)[j]
+                # for j in range(best_split.proj_vec_indices.size()):
+                #     temp_d += self.X[samples[p], best_split.proj_vec_indices[j]] *\
+                #                 best_split.proj_vec_weights[j]
+                for j in range(self.proj_mat_indices[best_split.feature].size()):
+                    temp_d += self.X[samples[p], self.proj_mat_indices[best_split.feature][j]] *\
+                                self.proj_mat_weights[best_split.feature][j]
 
                 if temp_d <= best_split.threshold:
                     p += 1
@@ -647,9 +672,12 @@ cdef class RandomObliqueSplitter(ObliqueSplitter):
             best_split.improvement = self.criterion.impurity_improvement(
                 impurity, best_split.impurity_left, best_split.impurity_right)
 
+        # deref(oblique_split).proj_vec_indices = deref(best_proj_vec_indices) # best_split.proj_vec_indices
+        # deref(oblique_split).proj_vec_weights = deref(best_proj_vec_weights) # best_split.proj_vec_weights
+        deref(oblique_split).proj_vec_indices = self.proj_mat_indices[best_split.feature]
+        deref(oblique_split).proj_vec_weights = self.proj_mat_weights[best_split.feature]
+
         # Return values
-        deref(oblique_split).proj_vec_indices = best_split.proj_vec_indices
-        deref(oblique_split).proj_vec_weights = best_split.proj_vec_weights
         deref(oblique_split).feature = best_split.feature
         deref(oblique_split).pos = best_split.pos
         deref(oblique_split).threshold = best_split.threshold
@@ -829,186 +857,6 @@ cdef class MultiViewSplitter(BestObliqueSplitter):
                             break
                     if proj_i >= self.max_features:
                         break
-
-# XXX: not used right now
-cdef class MultiViewObliqueSplitter(BestObliqueSplitter):
-    def __cinit__(
-        self,
-        Criterion criterion,
-        intp_t max_features,
-        intp_t min_samples_leaf,
-        float64_t min_weight_leaf,
-        object random_state,
-        const cnp.int8_t[:] monotonic_cst,
-        float64_t feature_combinations,
-        const intp_t[:] feature_set_ends,
-        intp_t n_feature_sets,
-        bint uniform_sampling,
-        *argv
-    ):
-        self.feature_set_ends = feature_set_ends
-        self.uniform_sampling = uniform_sampling
-
-        # infer the number of feature sets
-        self.n_feature_sets = n_feature_sets
-
-    def __reduce__(self):
-        """Enable pickling the splitter."""
-        return (type(self),
-                (
-                    self.criterion,
-                    self.max_features,
-                    self.min_samples_leaf,
-                    self.min_weight_leaf,
-                    self.random_state,
-                    self.monotonic_cst.base if self.monotonic_cst is not None else None,
-                    self.feature_combinations,
-                    self.feature_set_ends,
-                    self.n_feature_sets,
-                    self.uniform_sampling,
-                ), self.__getstate__())
-
-    cdef int init(
-        self,
-        object X,
-        const float64_t[:, ::1] y,
-        const float64_t[:] sample_weight,
-        const unsigned char[::1] missing_values_in_feature_mask,
-    ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
-
-        self.X = X
-
-        # create a helper array for allowing efficient Fisher-Yates
-        self.multi_indices_to_sample = vector[vector[intp_t]](self.n_feature_sets)
-
-        cdef intp_t i_feature = 0
-        cdef intp_t feature_set_begin = 0
-        cdef intp_t size_of_feature_set
-        cdef intp_t ifeat = 0
-        cdef intp_t iproj = 0
-        while iproj < self.max_features:
-            for i_feature in range(self.n_feature_sets):
-                size_of_feature_set = self.feature_set_ends[i_feature] - feature_set_begin
-
-                for ifeat in range(size_of_feature_set):
-                    self.multi_indices_to_sample[i_feature].push_back(ifeat + feature_set_begin + (iproj * self.n_features))
-                    iproj += 1
-                    if iproj >= self.max_features:
-                        break
-                if iproj >= self.max_features:
-                    break
-
-            feature_set_begin = self.feature_set_ends[i_feature]
-        return 0
-
-    cdef void sample_proj_mat(
-        self,
-        vector[vector[float32_t]]& proj_mat_weights,
-        vector[vector[intp_t]]& proj_mat_indices
-    ) noexcept nogil:
-        """Sample projection matrix accounting for multi-views.
-
-        This proceeds as a normal sampling projection matrix,
-        but now also uniformly samples features from each feature set.
-        """
-        cdef intp_t n_features = self.n_features
-        cdef intp_t n_non_zeros = self.n_non_zeros
-        cdef UINT32_t* random_state = &self.rand_r_state
-
-        cdef intp_t i, j, feat_i, proj_i, rand_vec_index
-        cdef float32_t weight
-
-        # construct an array to sample from mTry x n_features set of indices
-        cdef vector[intp_t] indices_to_sample
-        cdef intp_t grid_size
-
-        # compute the number of features in each feature set
-        cdef intp_t n_features_in_set
-
-        # keep track of the beginning and ending indices of each feature set
-        cdef intp_t feature_set_begin, feature_set_end, idx
-        feature_set_begin = 0
-
-        # keep track of number of features sampled relative to n_non_zeros
-        cdef intp_t ifeature = 0
-
-        if self.uniform_sampling:
-            # 01: This algorithm samples features from each feature set uniformly and combines them
-            # into one sparse projection vector.
-            while ifeature < n_non_zeros:
-                for idx in range(self.n_feature_sets):
-                    feature_set_end = self.feature_set_ends[idx]
-                    n_features_in_set = feature_set_end - feature_set_begin
-                    indices_to_sample = self.multi_indices_to_sample[idx]
-                    grid_size = indices_to_sample.size()
-
-                    # shuffle indices over the 2D grid for this feature set to sample using Fisher-Yates
-                    for i in range(0, grid_size):
-                        j = rand_int(0, grid_size, random_state)
-                        indices_to_sample[j], indices_to_sample[i] = \
-                            indices_to_sample[i], indices_to_sample[j]
-
-                    # sample a n_non_zeros matrix for each feature set, which proceeds by:
-                    # - sample 'n_non_zeros' in a mtry X n_features projection matrix
-                    # - which consists of +/- 1's chosen at a 1/2s rate
-                    # for i in range(0, n_non_zeros_per_set):
-                    # get the next index from the shuffled index array
-                    rand_vec_index = indices_to_sample[0]
-
-                    # get the projection index (i.e. row of the projection matrix) and
-                    # feature index (i.e. column of the projection matrix)
-                    proj_i = rand_vec_index // n_features
-                    feat_i = rand_vec_index % n_features
-
-                    # sample a random weight
-                    weight = 1 if (rand_int(0, 2, random_state) == 1) else -1
-
-                    proj_mat_indices[proj_i].push_back(feat_i)  # Store index of nonzero
-                    proj_mat_weights[proj_i].push_back(weight)  # Store weight of nonzero
-
-                    # the new beginning is the previous end
-                    feature_set_begin = feature_set_end
-
-                    ifeature += 1
-        else:
-            # 02: Algorithm samples feature combinations from each feature set uniformly and evaluates
-            # them independently.
-            feature_set_begin = 0
-
-            # sample from a feature set
-            for idx in range(self.n_feature_sets):
-                feature_set_end = self.feature_set_ends[idx]
-                n_features_in_set = feature_set_end - feature_set_begin
-
-                # indices to sample is a 1D-index array of size (max_features * n_features_in_set)
-                # which is Fisher-Yates shuffled to sample random features in each feature set
-                indices_to_sample = self.multi_indices_to_sample[idx]
-                grid_size = indices_to_sample.size()
-
-                # shuffle indices over the 2D grid for this feature set to sample using Fisher-Yates
-                for i in range(0, grid_size):
-                    j = rand_int(0, grid_size, random_state)
-                    indices_to_sample[j], indices_to_sample[i] = \
-                        indices_to_sample[i], indices_to_sample[j]
-
-                for i in range(0, n_non_zeros):
-                    # get the next index from the shuffled index array
-                    rand_vec_index = indices_to_sample[i]
-
-                    # get the projection index (i.e. row of the projection matrix) and
-                    # feature index (i.e. column of the projection matrix)
-                    proj_i = rand_vec_index // n_features
-                    feat_i = rand_vec_index % n_features
-
-                    # sample a random weight
-                    weight = 1 if (rand_int(0, 2, random_state) == 1) else -1
-
-                    proj_mat_indices[proj_i].push_back(feat_i)  # Store index of nonzero
-                    proj_mat_weights[proj_i].push_back(weight)  # Store weight of nonzero
-
-                # the new beginning is the previous end
-                feature_set_begin = feature_set_end
 
 
 cdef class MultiViewSplitterTester(MultiViewSplitter):

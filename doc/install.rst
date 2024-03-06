@@ -41,7 +41,7 @@ Then run installation of build packages
 
 .. code-block:: bash
 
-    pip install -r build_requirements.txt
+    pip install .[build]
     pip install spin
 
     # use spin CLI to run Meson build locally

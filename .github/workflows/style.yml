@@ -41,7 +41,10 @@ jobs:
           sudo apt-get install -y libopenblas-dev libatlas-base-dev liblapack-dev
 
       - name: Install dependencies
-        run: pip install -r style_requirements.txt
+        run: |
+          pip install --upgrade pip spin
+          spin setup-submodule
+          pip install .[style]
 
       # check formatting of the code style
       - name: Check code formatting

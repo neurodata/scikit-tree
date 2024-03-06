@@ -7,6 +7,7 @@ python_sources = [
   'test_all_trees.py',
   'test_unsupervised_tree.py',
   'test_multiview.py',
+  'test_oblique_trees.py',
 ]
 
 py3.install_sources(

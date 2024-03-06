@@ -39,14 +39,14 @@ Assuming these steps have worked properly and you have read and followed any nec
 
 If you are developing locally, you will need the build dependencies to compile the Cython / C++ code:
 
-    pip install -r build_requirements.txt
+    pip install .[build]
 
 Other requirements can be installed as such:
 
-    pip install -r requirements.txt
-    pip install -r style_requirements.txt
-    pip install -r test_requirements.txt
-    pip install -r doc_requirements.txt
+    pip install .
+    pip install .[style]
+    pip install .[test]
+    pip install .[doc]
 
 # Building the project from source
 

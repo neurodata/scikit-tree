@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Example stub for running `python -m spin`
+# Example stub for running `spin`
 #
 # Copy this into your project root.
 

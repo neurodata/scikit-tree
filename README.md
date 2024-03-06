@@ -52,7 +52,7 @@ Building locally with Meson (For developers)
 Make sure you have the necessary packages installed
 
     # install build dependencies
-    pip install -r build_requirements.txt
+    pip install .[build]
 
     # you may need these optional dependencies to build scikit-learn locally
     conda install -c conda-forge joblib threadpoolctl pytest compilers llvm-openmp

@@ -138,6 +138,7 @@ cdef class ObliqueTree(Tree):
 
         proj_vecs = self.get_projection_matrix()
         d["proj_vecs"] = proj_vecs
+
         return d
 
     def __setstate__(self, d):
@@ -243,14 +244,13 @@ cdef class ObliqueTree(Tree):
         node.feature = deref(oblique_split_node).feature
         node.threshold = deref(oblique_split_node).threshold
 
-        # oblique trees store the projection indices and weights
-        # inside the tree itself
-        self.proj_vec_weights[node_id] = deref(
-            deref(oblique_split_node).proj_vec_weights
-        )
-        self.proj_vec_indices[node_id] = deref(
-            deref(oblique_split_node).proj_vec_indices
-        )
+        # TODO: this is not efficient. There are currently two copies being done of the optimal projection vector.
+        # One here and one within the splitter. We should try to remove one of these copies in a new design.
+        # oblique trees store the projection indices and weights inside the tree itself
+        # Note: this makes a copy of the projection indices and weights by
+        # dereferencing the pointer to the split record to get the actual values
+        self.proj_vec_weights[node_id] = deref(oblique_split_node).proj_vec_weights
+        self.proj_vec_indices[node_id] = deref(oblique_split_node).proj_vec_indices
         return 1
 
     cdef float32_t _compute_feature(

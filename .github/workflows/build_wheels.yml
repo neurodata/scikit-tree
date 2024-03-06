@@ -60,9 +60,10 @@ jobs:
 
       - name: Setup submodule
         run: |
-          python -m pip install -r build_requirements.txt
+          python -m pip install --upgrade pip
           python -m pip install spin
-          python spin setup-submodule
+          python -m spin setup-submodule
+          python -m pip install .[build]
 
       - name: win_amd64 - install rtools
         run: |
@@ -79,7 +80,7 @@ jobs:
         # configuration step to create a build directory. The subsequent wheel
         # build then needs to use that directory. This can be done with pip
         # using a command like:
-        # python -m pip wheel --config-settings builddir=build .
+        # pip wheel --config-settings builddir=build .
         # if: >-
         #   ( ! contains(matrix.os[2], 'arm64' ) )
         env:
@@ -114,10 +115,10 @@ jobs:
 
       - name: Install cibuildwheel dependencies
         run: |
-          python -m pip install cibuildwheel
-          python -m pip install -r build_requirements.txt
-          python -m pip install spin
-          python spin setup-submodule
+          pip install cibuildwheel
+          pip install spin
+          spin setup-submodule
+          pip install .[build]
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.16.5
@@ -146,9 +147,9 @@ jobs:
 
       - name: Build source distribution
         run: |
-          python -m pip install -r build_requirements.txt
-          python -m pip install spin
-          python spin setup-submodule
+          pip install spin build
+          spin setup-submodule
+          pip install .[build]
           python -m build
 
       - name: Store artifacts

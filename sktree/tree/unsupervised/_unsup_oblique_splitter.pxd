@@ -20,8 +20,8 @@ cdef struct ObliqueSplitRecord:
     float64_t impurity_left        # Impurity of the left split.
     float64_t impurity_right       # Impurity of the right split.
 
-    vector[float32_t]* proj_vec_weights   # weights of the vector (max_features,)
-    vector[intp_t]* proj_vec_indices    # indices of the features (max_features,)
+    vector[float32_t] proj_vec_weights   # weights of the vector (max_features,)
+    vector[intp_t] proj_vec_indices    # indices of the features (max_features,)
 
 
 cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
@@ -73,6 +73,6 @@ cdef class UnsupervisedObliqueSplitter(UnsupervisedSplitter):
         intp_t end,
         const intp_t[:] samples,
         float32_t[:] feature_values,
-        vector[float32_t]* proj_vec_weights,  # weights of the vector (max_features,)
-        vector[intp_t]* proj_vec_indices    # indices of the features (max_features,)
+        vector[float32_t]& proj_vec_weights,  # weights of the vector (max_features,)
+        vector[intp_t]& proj_vec_indices    # indices of the features (max_features,)
     ) noexcept nogil
