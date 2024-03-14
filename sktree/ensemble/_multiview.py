@@ -159,26 +159,11 @@ class MultiViewRandomForestClassifier(
         - If float, then draw `max_samples * X.shape[0]` samples. Thus,
           `max_samples` should be in the interval `(0.0, 1.0]`.
 
-    feature_combinations : float, default=None
-        The number of features to combine on average at each split
-        of the decision trees. If ``None``, then will default to the minimum of
-        ``(1.5, n_features)``. This controls the number of non-zeros is the
-        projection matrix. Setting the value to 1.0 is equivalent to a
-        traditional decision-tree. ``feature_combinations * max_features``
-        gives the number of expected non-zeros in the projection matrix of shape
-        ``(max_features, n_features)``. Thus this value must always be less than
-        ``n_features`` in order to be valid.
-
     feature_set_ends : array-like of int of shape (n_feature_sets,), default=None
         The indices of the end of each feature set. For example, if the first
         feature set is the first 10 features, and the second feature set is the
         next 20 features, then ``feature_set_ends = [10, 30]``. If ``None``,
         then this will assume that there is only one feature set.
-
-    apply_max_features_per_feature_set : bool, default=False
-        Whether to apply sampling per feature set, where ``max_features`` is applied
-        to each feature-set. If ``False``, then sampling
-        is applied over the entire feature space.
 
     Attributes
     ----------
@@ -270,9 +255,7 @@ class MultiViewRandomForestClassifier(
         warm_start=False,
         class_weight=None,
         max_samples=None,
-        feature_combinations=None,
         feature_set_ends=None,
-        apply_max_features_per_feature_set=False,
     ):
         super().__init__(
             estimator=MultiViewDecisionTreeClassifier(),
@@ -287,9 +270,7 @@ class MultiViewRandomForestClassifier(
                 "max_leaf_nodes",
                 "min_impurity_decrease",
                 "random_state",
-                "feature_combinations",
                 "feature_set_ends",
-                "apply_max_features_per_feature_set",
             ),
             bootstrap=bootstrap,
             oob_score=oob_score,
@@ -305,9 +286,7 @@ class MultiViewRandomForestClassifier(
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
         self.max_features = max_features
-        self.feature_combinations = feature_combinations
         self.feature_set_ends = feature_set_ends
-        self.apply_max_features_per_feature_set = apply_max_features_per_feature_set
 
         # unused by oblique forests
         self.min_weight_fraction_leaf = min_weight_fraction_leaf

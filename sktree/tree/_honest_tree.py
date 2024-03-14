@@ -285,6 +285,7 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
         "honest_prior": [StrOptions({"empirical", "uniform", "ignore"})],
         "stratify": ["boolean"],
     }
+    _parameter_constraints.pop("max_features")
 
     def __init__(
         self,

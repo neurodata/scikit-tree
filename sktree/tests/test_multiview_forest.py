@@ -150,7 +150,6 @@ def test_three_view_dataset(n_views, max_features):
     clf = MultiViewRandomForestClassifier(
         random_state=seed,
         feature_set_ends=feature_set_ends,
-        apply_max_features_per_feature_set=True,
         max_features=max_features,
         n_estimators=n_estimators,
     )

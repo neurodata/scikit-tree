@@ -5,6 +5,9 @@ tree_extension_metadata = {
   '_oblique_splitter':
     {'sources': ['_oblique_splitter.pyx'],
      'override_options': ['cython_language=cpp', 'optimization=3']},
+  '_multiview_splitter':
+    {'sources': ['_multiview_splitter.pyx'],
+     'override_options': ['cython_language=cpp', 'optimization=3']},
   '_oblique_tree':
     {'sources': ['_oblique_tree.pyx'],
      'override_options': ['cython_language=cpp', 'optimization=3']},

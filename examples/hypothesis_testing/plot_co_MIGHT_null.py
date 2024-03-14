@@ -82,13 +82,11 @@ est = FeatureImportanceForestClassifier(
     estimator=HonestForestClassifier(
         n_estimators=n_estimators,
         max_features=max_features,
-        tree_estimator=MultiViewDecisionTreeClassifier(
-            feature_set_ends=n_features_ends,
-            apply_max_features_per_feature_set=True,
-        ),
+        tree_estimator=MultiViewDecisionTreeClassifier(),
         random_state=seed,
         honest_fraction=0.5,
         n_jobs=n_jobs,
+        feature_set_ends=n_features_ends,
     ),
     random_state=seed,
     test_size=test_size,
@@ -201,13 +199,11 @@ est = FeatureImportanceForestClassifier(
     estimator=HonestForestClassifier(
         n_estimators=n_estimators,
         max_features=max_features,
-        tree_estimator=MultiViewDecisionTreeClassifier(
-            feature_set_ends=n_features_ends,
-            apply_max_features_per_feature_set=True,
-        ),
+        tree_estimator=MultiViewDecisionTreeClassifier(),
         random_state=seed,
         honest_fraction=0.5,
         n_jobs=n_jobs,
+        feature_set_ends=n_features_ends,
     ),
     random_state=seed,
     test_size=test_size,

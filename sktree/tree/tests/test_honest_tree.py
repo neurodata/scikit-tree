@@ -66,14 +66,14 @@ def test_toy_accuracy():
 @pytest.mark.parametrize(
     "tree, tree_kwargs",
     [
-        (MultiViewDecisionTreeClassifier(), {"feature_set_ends": [10, 20]}),
+        (MultiViewDecisionTreeClassifier(), {"feature_set_ends": [10, 30]}),
         (ObliqueDecisionTreeClassifier(), {"feature_combinations": 2}),
         (PatchObliqueDecisionTreeClassifier(), {"max_patch_dims": 5}),
     ],
 )
 def test_honest_tree_with_tree_estimator_params(tree, tree_kwargs):
     """Test that honest tree inherits all the fitted parameters of the tree estimator."""
-    X = np.ones((20, 4))
+    X = np.ones((20, 30))
     X[10:] *= -1
     y = [0] * 10 + [1] * 10
 
