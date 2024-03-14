@@ -13,6 +13,12 @@ Version 0.8
 Changelog
 ---------
 
+- |API| :class:`sktree.tree.MultiViewDecisionTreeClassifier` do not have the
+    ``apply_max_features_per_feature_set`` argument anymore. Instead, the
+    ``max_features`` argument is used to control the number of features to
+    consider when looking for the best split within each feature set explicitly.
+    By `Adam Li`_ :pr:`#247`.
+
 Code and Documentation Contributors
 -----------------------------------
 

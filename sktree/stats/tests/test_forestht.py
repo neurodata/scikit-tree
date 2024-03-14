@@ -710,7 +710,6 @@ def test_comight_repeated_feature_sets():
             tree_estimator=MultiViewDecisionTreeClassifier(
                 feature_set_ends=feature_set_ends,
                 max_features=0.3,
-                apply_max_features_per_feature_set=True,
             ),
         ),
         test_size=0.2,
