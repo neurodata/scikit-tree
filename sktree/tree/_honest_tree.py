@@ -1,5 +1,5 @@
-# Authors: Ronan Perry, Sambit Panda, Haoyin Xu
 # Adopted from: https://github.com/neurodata/honest-forests
+
 
 import numpy as np
 from sklearn.base import ClassifierMixin, MetaEstimatorMixin, _fit_context, clone
@@ -8,8 +8,22 @@ from sklearn.utils._param_validation import HasMethods, Interval, RealNotInt, St
 from sklearn.utils.multiclass import _check_partial_fit_first_call, check_classification_targets
 from sklearn.utils.validation import check_is_fitted, check_X_y
 
-from .._lib.sklearn.tree import DecisionTreeClassifier
+from .._lib.sklearn.tree import DecisionTreeClassifier, _criterion, _tree
 from .._lib.sklearn.tree._classes import BaseDecisionTree
+
+CRITERIA_CLF = {
+    "gini": _criterion.Gini,
+    "log_loss": _criterion.Entropy,
+    "entropy": _criterion.Entropy,
+}
+CRITERIA_REG = {
+    "squared_error": _criterion.MSE,
+    "friedman_mse": _criterion.FriedmanMSE,
+    "absolute_error": _criterion.MAE,
+    "poisson": _criterion.Poisson,
+}
+
+DOUBLE = _tree.DOUBLE
 
 
 class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree):
@@ -173,6 +187,13 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
         Whether or not to stratify sample when considering structure and leaf indices.
         By default False.
 
+    honest_method : {"apply", "prune"}, default="apply"
+        Method to use for fitting the leaf nodes. If "apply", the leaf nodes
+        are fit using the structure as is. In this case, empty leaves may occur
+        if not enough data. If "prune", the leaf nodes are fit
+        by pruning using the honest-set of data after the tree structure is built
+        using the structure-set of data.
+
     **tree_estimator_params : dict
         Parameters to pass to the underlying base tree estimators.
         These must be parameters for ``tree_estimator``.
@@ -305,6 +326,7 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
         honest_fraction=0.5,
         honest_prior="empirical",
         stratify=False,
+        honest_method="apply",
         **tree_estimator_params,
     ):
         self.tree_estimator = tree_estimator
@@ -325,6 +347,7 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
         self.honest_fraction = honest_fraction
         self.honest_prior = honest_prior
         self.stratify = stratify
+        self.honest_method = honest_method
 
         # XXX: to enable this, we need to also reset the leaf node samples during `_set_leaf_nodes`
         self.store_leaf_values = False
@@ -667,11 +690,6 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
         return self
 
     def _fit_leaves(self, X, y, sample_weight):
-        nonzero_indices = np.where(sample_weight > 0)[0]
-
-        # sample the structure indices
-        self.honest_indices_ = nonzero_indices
-
         # update the number of classes, unsplit
         if y.ndim == 1:
             # reshape is necessary to preserve the data contiguity against vs
@@ -682,9 +700,6 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
 
         # Normally called by super
         X = self.estimator_._validate_X_predict(X, True)
-
-        # Fit leaves using other subsample
-        honest_leaves = self.tree_.apply(X[self.honest_indices_])
 
         # preserve from underlying tree
         # https://github.com/scikit-learn/scikit-learn/blob/1.0.X/sklearn/tree/_classes.py#L202
@@ -703,11 +718,63 @@ class HonestTreeClassifier(MetaEstimatorMixin, ClassifierMixin, BaseDecisionTree
                 np.bincount(y_encoded[:, k], minlength=classes_k.shape[0]) / y.shape[0]
             )
         y = y_encoded
-
-        # y-encoded ensures that y values match the indices of the classes
-        self._set_leaf_nodes(honest_leaves, y)
-
         self.n_classes_ = np.array(self.n_classes_, dtype=np.intp)
+
+        if self.honest_method == "apply":
+            # Fit leaves using other subsample
+            honest_leaves = self.tree_.apply(X[self.honest_indices_])
+
+            # y-encoded ensures that y values match the indices of the classes
+            self._set_leaf_nodes(honest_leaves, y, sample_weight)
+        elif self.honest_method == "prune":
+            # if getattr(y, "dtype", None) != DOUBLE or not y.flags.contiguous:
+            #     y = np.ascontiguousarray(y, dtype=DOUBLE)
+
+            # n_samples = X.shape[0]
+
+            # # Build tree
+            # criterion = self.criterion
+            # if not isinstance(criterion, BaseCriterion):
+            #     if is_classifier(self):
+            #         criterion = CRITERIA_CLF[self.criterion](self.n_outputs_, self.n_classes_)
+            #     else:
+            #         criterion = CRITERIA_REG[self.criterion](self.n_outputs_, n_samples)
+            # else:
+            #     # Make a deepcopy in case the criterion has mutable attributes that
+            #     # might be shared and modified concurrently during parallel fitting
+            #     criterion = copy.deepcopy(criterion)
+
+            # random_state = check_random_state(self.random_state)
+            # pruner = HonestPruner(
+            #     criterion,
+            #     self.max_features_,
+            #     self.min_samples_leaf_,
+            #     self.min_weight_leaf_,
+            #     random_state,
+            #     self.monotonic_cst_,
+            #     self.tree_,
+            # )
+
+            # # build pruned tree
+            # if is_classifier(self):
+            #     n_classes = np.atleast_1d(self.n_classes_)
+            #     pruned_tree = Tree(self.n_features_in_, n_classes, self.n_outputs_)
+            # else:
+            #     pruned_tree = Tree(
+            #         self.n_features_in_,
+            #         # TODO: the tree shouldn't need this param
+            #         np.array([1] * self.n_outputs_, dtype=np.intp),
+            #         self.n_outputs_,
+            #     )
+
+            # # get the leaves
+            # missing_values_in_feature_mask = self._compute_missing_values_in_feature_mask(X)
+            # _build_pruned_tree_honesty(
+            #     pruned_tree, self.tree_, pruner, X, y, sample_weight, missing_values_in_feature_mask
+            # )
+            # self.tree_ = pruned_tree
+            raise NotImplementedError("Pruning is not yet implemented.")
+
         if self.n_outputs_ == 1:
             self.n_classes_ = self.n_classes_[0]
             self.classes_ = self.classes_[0]
