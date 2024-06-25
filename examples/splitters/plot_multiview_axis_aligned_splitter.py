@@ -127,9 +127,6 @@ plt.show()
 # more than the second feature set, we can specify ``max_features_per_set`` as follows:
 # ``max_features_per_set = [3, 1]``. This will sample from the first feature set three times
 # and the second feature set once.
-#
-# .. note:: In practice, this is controlled by the ``apply_max_features_per_feature_set`` parameter
-#   in :class:`sktree.tree.MultiViewDecisionTreeClassifier`.
 
 max_features_per_set_ = np.array([1, 2, 3], dtype=int)
 max_features = np.sum(max_features_per_set_)

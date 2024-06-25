@@ -195,7 +195,6 @@ def test_comight_repeated_feature_sets(seed):
         stratify=True,
         tree_estimator=MultiViewDecisionTreeClassifier(
             feature_set_ends=feature_set_ends,
-            apply_max_features_per_feature_set=True,
         ),
     )
     perm_clf = PermutationHonestForestClassifier(

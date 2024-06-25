@@ -2,13 +2,14 @@ import joblib
 import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
-from sklearn.base import is_classifier
+from sklearn.base import is_classifier, is_regressor
 from sklearn.datasets import load_iris, make_blobs
 from sklearn.tree._tree import TREE_LEAF
 
 from sktree.tree import (
     ExtraObliqueDecisionTreeClassifier,
     ExtraObliqueDecisionTreeRegressor,
+    MultiViewDecisionTreeClassifier,
     ObliqueDecisionTreeClassifier,
     ObliqueDecisionTreeRegressor,
     PatchObliqueDecisionTreeClassifier,
@@ -26,6 +27,8 @@ ALL_TREES = [
     PatchObliqueDecisionTreeClassifier,
     UnsupervisedDecisionTree,
     UnsupervisedObliqueDecisionTree,
+    MultiViewDecisionTreeClassifier,
+    # MultiViewObliqueDecisionTreeClassifier,
 ]
 
 
@@ -121,7 +124,7 @@ y_small_reg = [
 
 @pytest.mark.parametrize(
     "TREE",
-    [ObliqueDecisionTreeClassifier, UnsupervisedDecisionTree, UnsupervisedObliqueDecisionTree],
+    ALL_TREES,
 )
 def test_tree_deserialization_from_read_only_buffer(tmpdir, TREE):
     """Check that Trees can be deserialized with read only buffers.
@@ -131,7 +134,7 @@ def test_tree_deserialization_from_read_only_buffer(tmpdir, TREE):
     pickle_path = str(tmpdir.join("clf.joblib"))
     clf = TREE(random_state=0)
 
-    if is_classifier(TREE):
+    if is_classifier(TREE) or is_regressor(TREE):
         clf.fit(X_small, y_small)
     else:
         clf.fit(X_small)
