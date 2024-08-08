@@ -1,6 +1,5 @@
 import os
 import sys
-import warnings
 from typing import Optional, Tuple
 
 import numpy as np
@@ -31,9 +30,6 @@ if BOTTLENECK_AVAILABLE and DISABLE_BN_ENV_VAR not in os.environ:
     nanmean_f = bn.nanmean
     anynan_f = lambda arr: bn.anynan(arr, axis=2)
 else:
-    warnings.warn(
-        "Not using bottleneck for calculations involvings nans. Expect slower performance."
-    )
     nanmean_f = np.nanmean
     anynan_f = lambda arr: np.isnan(arr).any(axis=2)
 
