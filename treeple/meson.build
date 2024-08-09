@@ -93,7 +93,7 @@ cc = meson.get_compiler('c')
 #   numpy_nodepr_api)
 numpy_nodepr_api = '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION'
 
-# XXX: ENABLE WHEN DEBUGGING
+# TODO XXX: ENABLE WHEN DEBUGGING
 boundscheck = 'False'
 
 scikit_learn_cython_args = [

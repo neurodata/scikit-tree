@@ -11,6 +11,12 @@ tree_extension_metadata = {
   '_utils':
     {'sources': ['_utils.pyx'],
      'override_options': ['cython_language=cpp', 'optimization=3']},
+  '_honest_prune':
+    {'sources': ['_honest_prune.pyx'],
+     'override_options': ['cython_language=cpp', 'optimization=3']},
+  '_prune':
+    {'sources': ['_prune.pyx'],
+     'override_options': ['cython_language=cpp', 'optimization=3']},
   '_marginal':
     {'sources': ['_marginal.pyx'],
      'override_options': ['cython_language=cpp', 'optimization=3']},

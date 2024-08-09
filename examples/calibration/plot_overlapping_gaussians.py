@@ -1,4 +1,6 @@
 """
+.. _plot_overlapping_gaussians:
+
 ===================================================================
 Plot honest forest calibrations on overlapping gaussian simulations
 ===================================================================

@@ -15,7 +15,10 @@ Changelog
 
 - |Feature| Calculations involving nans in ``treeple.stats.utils`` now use the
     ``bottleneck`` library for faster computation. By `Ryan Hausen`_ (:pr:`#306`)
-
+- |Feature| :class:`treeple.tree.HonestTreeClassifier` now has a ``honest_method`` parameter
+    that enables the user to turn on pruning of the tree, such that there are no
+    empty leaf predictions. This brings the model closer to the implementation in GRF in R.
+    By `Adam Li`_ (:pr:`#286`)
 
 Code and Documentation Contributors
 -----------------------------------

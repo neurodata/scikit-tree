@@ -179,6 +179,11 @@ class PermutationHonestForestClassifier(HonestForestClassifier):
         remaining samples will be used to learn the tree structure. A larger
         fraction creates shallower trees with lower variance estimates.
 
+    honest_method : {"prune", "apply"}, default="prune"
+        Method for enforcing honesty. If "prune", the tree is pruned to enforce
+        honesty. If "apply", the tree is not pruned, but the leaf estimates are
+        adjusted to enforce honesty.
+
     tree_estimator : object, default=None
         Type of decision tree classifier to use. By default `None`, which
         defaults to `treeple.tree.DecisionTreeClassifier`. Note
@@ -298,35 +303,37 @@ class PermutationHonestForestClassifier(HonestForestClassifier):
         max_samples=None,
         honest_prior="empirical",
         honest_fraction=0.5,
+        honest_method="apply",
         tree_estimator=None,
         stratify=False,
         permute_per_tree=False,
         **tree_estimator_params,
     ):
         super().__init__(
-            n_estimators,
-            criterion,
-            splitter,
-            max_depth,
-            min_samples_split,
-            min_samples_leaf,
-            min_weight_fraction_leaf,
-            max_features,
-            max_leaf_nodes,
-            min_impurity_decrease,
-            bootstrap,
-            oob_score,
-            n_jobs,
-            random_state,
-            verbose,
-            warm_start,
-            class_weight,
-            ccp_alpha,
-            max_samples,
-            honest_prior,
-            honest_fraction,
-            tree_estimator,
-            stratify,
+            n_estimators=n_estimators,
+            criterion=criterion,
+            splitter=splitter,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            min_weight_fraction_leaf=min_weight_fraction_leaf,
+            max_features=max_features,
+            max_leaf_nodes=max_leaf_nodes,
+            min_impurity_decrease=min_impurity_decrease,
+            bootstrap=bootstrap,
+            oob_score=oob_score,
+            n_jobs=n_jobs,
+            random_state=random_state,
+            verbose=verbose,
+            warm_start=warm_start,
+            class_weight=class_weight,
+            ccp_alpha=ccp_alpha,
+            max_samples=max_samples,
+            honest_prior=honest_prior,
+            honest_fraction=honest_fraction,
+            honest_method=honest_method,
+            tree_estimator=tree_estimator,
+            stratify=stratify,
             **tree_estimator_params,
         )
         self.permute_per_tree = permute_per_tree

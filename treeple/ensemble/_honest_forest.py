@@ -270,6 +270,11 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         Fraction of training samples used for estimates in the trees. The
         remaining samples will be used to learn the tree structure. A larger
         fraction creates shallower trees with lower variance estimates.
+    
+    honest_method : {"prune", "apply"}, default="prune"
+        Method for enforcing honesty. If "prune", the tree is pruned to enforce
+        honesty. If "apply", the tree is not pruned, but the leaf estimates are
+        adjusted to enforce honesty.
 
     tree_estimator : object, default=None
         Instantiated tree of type BaseDecisionTree from treeple.
@@ -410,16 +415,19 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
 
     _parameter_constraints: dict = {
         **ForestClassifier._parameter_constraints,
+        **HonestTreeClassifier._parameter_constraints,
+        "class_weight": [
+            StrOptions({"balanced_subsample", "balanced"}),
+            dict,
+            list,
+            None,
+        ],
     }
     _parameter_constraints.pop("max_samples")
     _parameter_constraints["max_samples"] = [
         None,
         Interval(RealNotInt, 0.0, None, closed="right"),
         Interval(Integral, 1, None, closed="left"),
-    ]
-    _parameter_constraints["honest_fraction"] = [Interval(RealNotInt, 0.0, 1.0, closed="both")]
-    _parameter_constraints["honest_prior"] = [
-        StrOptions({"empirical", "uniform", "ignore"}),
     ]
     _parameter_constraints["stratify"] = ["boolean"]
 
@@ -446,6 +454,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         max_samples=None,
         honest_prior="ignore",
         honest_fraction=0.5,
+        honest_method="apply",
         tree_estimator=None,
         stratify=False,
         **tree_estimator_params,
@@ -468,6 +477,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
                 "tree_estimator",
                 "honest_fraction",
                 "honest_prior",
+                "honest_method",
                 "stratify",
             ),
             bootstrap=bootstrap,
@@ -491,6 +501,7 @@ class HonestForestClassifier(ForestClassifier, ForestClassifierMixin):
         self.ccp_alpha = ccp_alpha
         self.honest_fraction = honest_fraction
         self.honest_prior = honest_prior
+        self.honest_method = honest_method
         self.tree_estimator = tree_estimator
         self.stratify = stratify
         self._tree_estimator_params = tree_estimator_params
