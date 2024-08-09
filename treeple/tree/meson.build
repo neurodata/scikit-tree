@@ -36,6 +36,7 @@ python_sources = [
   '_neighbors.py',
   '_honest_tree.py',
   '_marginalize.py',
+  '_kernel.py',
 ]
 
 py.install_sources(

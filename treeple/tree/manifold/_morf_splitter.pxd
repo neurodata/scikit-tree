@@ -73,9 +73,14 @@ cdef class PatchSplitter(BestObliqueSplitter):
     ) noexcept nogil
 
 
-# cdef class UserKernelSplitter(PatchSplitter):
-#     """A class to hold user-specified kernels."""
-#     cdef vector[float32_t[:, ::1]] kernel_dictionary  # A list of C-contiguous 2D kernels
+ctypedef float32_t* float32_t_ptr
+ctypedef intp_t* inpt_t_ptr
+
+cdef class UserKernelSplitter(PatchSplitter):
+    """A class to hold user-specified kernels."""
+    # cdef vector[float32_t[:, ::1]] kernel_dictionary  # A list of C-contiguous 2D kernels
+    cdef vector[float32_t*] kernel_dictionary  # A list of C-contiguous 2D kernels
+    cdef vector[intp_t*] kernel_dims         # A list of arrays storing the dimensions of each kernel in `kernel_dictionary`
 
 
 cdef class GaussianKernelSplitter(PatchSplitter):

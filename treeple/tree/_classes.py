@@ -1283,7 +1283,7 @@ class ObliqueDecisionTreeRegressor(SimMatrixMixin, DecisionTreeRegressor):
 
     tree_type = "oblique"
 
-    _parameter_constraints = {
+    _parameter_constraints: dict = {
         **DecisionTreeRegressor._parameter_constraints,
         "feature_combinations": [
             Interval(Real, 1.0, None, closed="left"),
@@ -1684,7 +1684,7 @@ class PatchObliqueDecisionTreeClassifier(SimMatrixMixin, DecisionTreeClassifier)
     """
 
     tree_type = "oblique"
-    _parameter_constraints = {
+    _parameter_constraints: dict = {
         **DecisionTreeClassifier._parameter_constraints,
         "min_patch_dims": ["array-like", None],
         "max_patch_dims": ["array-like", None],
@@ -2166,7 +2166,7 @@ class PatchObliqueDecisionTreeRegressor(SimMatrixMixin, DecisionTreeRegressor):
     """
 
     tree_type = "oblique"
-    _parameter_constraints = {
+    _parameter_constraints: dict = {
         **DecisionTreeRegressor._parameter_constraints,
         "min_patch_dims": ["array-like", None],
         "max_patch_dims": ["array-like", None],

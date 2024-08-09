@@ -195,6 +195,7 @@ ignore_missing_imports = true
 no_site_packages = true
 exclude = [
   'treeple/_lib/',
+  'treeple/_lib/*',
   'benchmarks_nonasv/'
 ]
 
