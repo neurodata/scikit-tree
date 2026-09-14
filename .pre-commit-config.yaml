@@ -1,12 +1,12 @@
 repos:
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1
     hooks:
       - id: black
         args: [--quiet]
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 9.0.1
     hooks:
       - id: isort
         name: isort (python)
@@ -15,14 +15,14 @@ repos:
         types: [cython]
 
   - repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.16.2
+    rev: v0.21.1
     hooks:
       - id: cython-lint
       - id: double-quote-cython-strings
 
   # Ruff treeple
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.7
     hooks:
       - id: ruff
         name: ruff treeple
@@ -31,7 +31,7 @@ repos:
 
   # Ruff tutorials and examples
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.7
     hooks:
       - id: ruff
         name: ruff tutorials and examples
@@ -42,7 +42,7 @@ repos:
 
   # Codespell
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: v2.4.3
     hooks:
       - id: codespell
         additional_dependencies:
@@ -52,14 +52,14 @@ repos:
 
   # yamllint
   - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [--strict, -c, .yamllint.yml]
 
   # toml-sort
   - repo: https://github.com/pappasam/toml-sort
-    rev: v0.23.1
+    rev: v0.25.0
     hooks:
       - id: toml-sort
         files: ^pyproject\.toml$
@@ -67,7 +67,7 @@ repos:
 
   # mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.2
+    rev: v2.3.1
     hooks:
       - id: mypy
         # Avoid the conflict between mne/__init__.py and mne/__init__.pyi by ignoring the former
@@ -76,7 +76,7 @@ repos:
 
   # rstcheck
   - repo: https://github.com/rstcheck/rstcheck.git
-    rev: v6.2.4
+    rev: v6.3.0
     hooks:
       - id: rstcheck
         additional_dependencies:
